@@ -1,22 +1,22 @@
 {
-  "name": "jore-postgres-import",
+  "name": "jore-history-postgres-import",
   "version": "0.0.1",
-  "description": "Data importer for jore-graphql",
+  "description": "Data importer for jore-history-graphql",
   "scripts": {
     "start": "node src/preprocess.js && node --max_old_space_size=4096 src/importPostgis.js",
     "lint": "eslint src"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/HSLdevcom/jore-graphql-import.git"
+    "url": "git+https://github.com/HSLdevcom/jore-history-graphql-import.git"
   },
   "keywords": [],
   "author": "Hannes Junnila <hannes.junnila@gmail.com>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/HSLdevcom/jore-graphql-import/issues"
+    "url": "https://github.com/HSLdevcom/jore-history-graphql-import/issues"
   },
-  "homepage": "https://github.com/HSLdevcom/jore-graphql-import",
+  "homepage": "https://github.com/HSLdevcom/jore-history-graphql-import",
   "dependencies": {
     "iconv-lite": "^0.4.13",
     "knex": "^0.13.0",

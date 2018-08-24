@@ -3,8 +3,8 @@ set -e
 
 ORG=${ORG:-hsldevcom}
 DOCKER_TAG=${TRAVIS_BUILD_NUMBER:-latest}
-DOCKER_IMAGE=$ORG/jore-graphql-import:${DOCKER_TAG}
-DOCKER_IMAGE_LATEST=$ORG/jore-graphql-import:latest
+DOCKER_IMAGE=$ORG/jore-history-graphql-import:${DOCKER_TAG}
+DOCKER_IMAGE_LATEST=$ORG/jore-history-graphql-import:latest
 
 docker build --tag=$DOCKER_IMAGE .
 
