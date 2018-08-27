@@ -1,5 +1,6 @@
 const fs = require("fs-extra");
 const path = require("path");
+const _ = require("lodash");
 const tables = require("../src/schema");
 
 function createTables(schema) {
@@ -81,12 +82,12 @@ function createForeignKeys(schema) {
 
 exports.up = async function(knex) {
   const createSchemaSQL = await fs.readFile(
-    path.join(__dirname, "createSchema.sql"),
+    path.join(__dirname, "../src/", "createSchema.sql"),
     "utf8",
   );
 
   const createFunctionsSQL = await fs.readFile(
-    path.join(__dirname, "createFunctions.sql"),
+    path.join(__dirname, "../src/", "createFunctions.sql"),
     "utf8",
   );
 
@@ -98,7 +99,7 @@ exports.up = async function(knex) {
 
 exports.down = async function(knex) {
   const dropSchemaSQL = await fs.readFile(
-    path.join(__dirname, "dropSchema.sql"),
+    path.join(__dirname, "../src/", "dropSchema.sql"),
     "utf8",
   );
 
