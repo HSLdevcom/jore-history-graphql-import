@@ -1,5 +1,8 @@
 const fs = require("fs");
 const readline = require("readline");
+const _ = require("lodash");
+const upsert = require("./util/upsert");
+const schema = require("./schema");
 
 const isWhitespaceOnly = /^\s*$/;
 
@@ -14,6 +17,7 @@ function parseLine(line, fields, knex, st) {
       } else if (type === "decimal") {
         values[name] = parseFloat(value);
         if (Number.isNaN(values[name])) {
+          console.log(values[name], value);
           throw new Error(
             `Failed to parse value for field ${name}. Line:\n${line}`,
           );
@@ -54,16 +58,37 @@ function parseLine(line, fields, knex, st) {
   return values;
 }
 
+function getIndexForTable(tableName) {
+  const tableSchema = _.get(schema, tableName, false);
+  return _.get(tableSchema, "fields", []).reduceRight((indexName, field) => {
+    const name = _.get(field, "name", indexName);
+
+    if (
+      _.get(field, "primary", false) ||
+      _.get(field, "unique", false) ||
+      _.get(field, "index", false)
+    ) {
+      return name;
+    }
+
+    return indexName;
+  }, "");
+}
+
 function parseDat(filename, fields, knex, tableName, trx, st) {
+  const indexColumn = getIndexForTable(tableName);
+
   const insertLines = async (lines) => {
     console.log(
       `Inserting ${lines.length} lines from ${filename} to ${tableName}`,
     );
-    await knex
-      .withSchema("jore")
-      .transacting(trx)
-      .insert(lines)
-      .into(tableName);
+
+    await upsert({
+      db: knex,
+      tableName: `jore.${tableName}`,
+      itemData: lines,
+      conflictTarget: indexColumn,
+    });
   };
 
   return new Promise((resolve, reject) => {

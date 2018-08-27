@@ -2,7 +2,7 @@
 const fs = require("fs");
 const path = require("path");
 const readline = require("readline");
-const iconv = require("iconv-lite");
+const utf8 = require("./util/toUtf8");
 const schema = require("./schema");
 
 const isWhitespaceOnly = /^\s*$/;
@@ -106,7 +106,9 @@ function updateEncodingInner(filename) {
     const tempPath = `${filePath}.tmp`;
     const inStream = fs.createReadStream(filePath);
     const outStream = fs.createWriteStream(tempPath);
-    inStream.pipe(iconv.decodeStream("ISO-8859-1")).pipe(outStream);
+
+    inStream.pipe(utf8()).pipe(outStream);
+
     outStream.on("close", () => {
       fs.rename(
         tempPath,
@@ -118,8 +120,8 @@ function updateEncodingInner(filename) {
 }
 
 async function updateEncoding() {
-  for (let i = 0; i < filenames.length; i += 1) {
-    await updateEncodingInner(filenames[i]);
+  for (const file of filenames) {
+    await updateEncodingInner(file);
   }
 }
 

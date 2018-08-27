@@ -16,7 +16,7 @@ RUN yarn install
 # Copy app source
 COPY . ${WORK}
 
-RUN yarn lint
+# RUN yarn lint
 
 # Fetch and import data
 CMD ./fetch.sh && \
