@@ -23,5 +23,6 @@ docker build -t hsldevcom/jore-history-graphql-import .
 
 Start the importer:
 ```
-docker run --link jore-history-postgis -e USERNAME="ftpusername" -e PASSWORD="ftppassword" -v downloads:/tmp/build -e "PG_CONNECTION_STRING=postgres://postgres:mysecretpassword@jore-history-postgis:5432/postgres" hsldevcom/jore-history-graphql-import
+docker run --link jore-history-postgis -e USERNAME="ftpusername" -e PASSWORD="ftppassword" -v ./downloads:/tmp/build -e "PG_CONNECTION_STRING=postgres://postgres:mysecretpassword@jore-history-postgis:5432/postgres" hsldevcom/jore-history-graphql-import
 ```
+/home/daniel/Work/hsl/jore-history-graphql-import

@@ -3,4 +3,5 @@
 node_modules
 data/**
 !data/terminaaliryhma.dat
-postgres-data/
+postgres-data
+downloads

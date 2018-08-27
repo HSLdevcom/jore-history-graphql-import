@@ -4,7 +4,8 @@
   "description": "Data importer for jore-history-graphql",
   "scripts": {
     "start": "node src/preprocess.js && node --max_old_space_size=4096 src/importPostgis.js",
-    "lint": "eslint src"
+    "lint": "eslint src",
+    "knex": "PG_CONNECTION_STRING=postgres://postgres:mysecretpassword@localhost:5432/postgres knex"
   },
   "repository": {
     "type": "git",
@@ -18,15 +19,17 @@
   },
   "homepage": "https://github.com/HSLdevcom/jore-history-graphql-import",
   "dependencies": {
-    "iconv-lite": "^0.4.13",
-    "knex": "^0.13.0",
-    "knex-postgis": "^0.2.2",
-    "lodash": "^4.17.4",
-    "pg": "^6.1.2"
+    "fs-extra": "^7.0.0",
+    "iconv-lite": "^0.4.24",
+    "knex": "^0.15.2",
+    "knex-postgis": "^0.7.0",
+    "lodash": "^4.17.10",
+    "pg": "^7.4.3"
   },
   "devDependencies": {
-    "eslint": "^4.8.0",
-    "eslint-config-airbnb-base": "^12.0.2",
-    "eslint-plugin-import": "^2.7.0"
+    "eslint": "^5.4.0",
+    "eslint-config-airbnb-base": "^13.1.0",
+    "eslint-plugin-import": "^2.14.0",
+    "prettier": "^1.14.2"
   }
 }
