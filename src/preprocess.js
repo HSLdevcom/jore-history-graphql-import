@@ -8,8 +8,8 @@ const schema = require("./schema");
 const isWhitespaceOnly = /^\s*$/;
 
 const filenames = Object.values(schema)
-  .map(table => table.filename)
-  .filter(filename => !!filename);
+  .map((table) => table.filename)
+  .filter((filename) => !!filename);
 
 function processLines(filename, callback) {
   return new Promise((resolve, reject) => {
@@ -27,7 +27,11 @@ function processLines(filename, callback) {
     });
     lineReader.on("close", () => {
       output.end();
-      fs.rename(tempPath, filePath, error => (error ? reject(error) : resolve()));
+      fs.rename(
+        tempPath,
+        filePath,
+        (error) => (error ? reject(error) : resolve()),
+      );
     });
   });
 }
@@ -36,7 +40,9 @@ function readLineLength(filename) {
   return new Promise((resolve) => {
     let maxLength = 0;
     const filePath = path.join(__dirname, "..", "data", filename);
-    const lineReader = readline.createInterface({ input: fs.createReadStream(filePath) });
+    const lineReader = readline.createInterface({
+      input: fs.createReadStream(filePath),
+    });
 
     lineReader.on("line", (line) => {
       if (line.length > maxLength) maxLength = line.length;
@@ -80,7 +86,7 @@ async function replaceGeometryIndexes() {
 
   const callback = (line, stream) => {
     const lineId = line.substr(0, 24);
-    index = (lineId === previous) ? (index + 1) : 1;
+    index = lineId === previous ? index + 1 : 1;
     const indexPadded = `${"0".repeat(4 - index.toString().length)}${index}`;
     const lineIndexed = `${line.substr(0, 32)}${indexPadded}${line.slice(36)}`;
     stream.write(`${lineIndexed}\r\n`);
@@ -102,7 +108,11 @@ function updateEncodingInner(filename) {
     const outStream = fs.createWriteStream(tempPath);
     inStream.pipe(iconv.decodeStream("ISO-8859-1")).pipe(outStream);
     outStream.on("close", () => {
-      fs.rename(tempPath, filePath, error => (error ? reject(error) : resolve()));
+      fs.rename(
+        tempPath,
+        filePath,
+        (error) => (error ? reject(error) : resolve()),
+      );
     });
   });
 }

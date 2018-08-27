@@ -5,6 +5,7 @@
   "scripts": {
     "start": "node src/preprocess.js && node --max_old_space_size=4096 src/importPostgis.js",
     "lint": "eslint src",
+    "prettier": "prettier */**.{js,json} --write",
     "knex": "PG_CONNECTION_STRING=postgres://postgres:mysecretpassword@localhost:5678/postgres knex"
   },
   "repository": {
@@ -29,7 +30,9 @@
   "devDependencies": {
     "eslint": "^5.4.0",
     "eslint-config-airbnb-base": "^13.1.0",
+    "eslint-config-prettier": "^3.0.1",
     "eslint-plugin-import": "^2.14.0",
+    "eslint-plugin-prettier": "^2.6.2",
     "prettier": "^1.14.2"
   }
 }

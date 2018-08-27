@@ -3,7 +3,7 @@
     "ecmaVersion": 8,
     "sourceType": "module"
   },
- "extends": "airbnb-base",
+ "extends": ["airbnb-base", "plugin:prettier/recommended"],
   "rules": {
     "quotes": ["error", "double", { "avoidEscape": true }],
     "no-console": "off"

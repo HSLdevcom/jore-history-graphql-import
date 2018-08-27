@@ -1,6 +1,5 @@
 const fs = require("fs-extra");
 const path = require("path");
-const _ = require("lodash");
 
 const knex = require("knex")({
   dialect: "postgres",

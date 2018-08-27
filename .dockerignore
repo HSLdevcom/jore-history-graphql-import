@@ -5,3 +5,4 @@ data/**
 !data/terminaaliryhma.dat
 postgres-data
 downloads
+migrations
