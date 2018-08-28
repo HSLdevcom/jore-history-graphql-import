@@ -2,7 +2,7 @@
 const fs = require("fs");
 const path = require("path");
 const readline = require("readline");
-const utf8 = require("./util/toUtf8");
+const iconv = require("iconv-lite");
 const schema = require("./schema");
 
 const isWhitespaceOnly = /^\s*$/;
@@ -13,7 +13,7 @@ const filenames = Object.values(schema)
 
 function processLines(filename, callback) {
   return new Promise((resolve, reject) => {
-    const filePath = path.join(__dirname, "..", "data", filename);
+    const filePath = path.join(__dirname, "..", "processed", filename);
     const tempPath = `${filePath}.tmp`;
 
     const input = fs.createReadStream(filePath);
@@ -101,20 +101,20 @@ async function replaceGeometryIndexes() {
 }
 
 function updateEncodingInner(filename) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const filePath = path.join(__dirname, "..", "data", filename);
-    const tempPath = `${filePath}.tmp`;
-    const inStream = fs.createReadStream(filePath);
-    const outStream = fs.createWriteStream(tempPath);
+    const destPath = path.join(__dirname, "..", "processed", filename);
 
-    inStream.pipe(utf8()).pipe(outStream);
+    const inStream = fs.createReadStream(filePath);
+    const outStream = fs.createWriteStream(destPath);
+
+    inStream
+      .pipe(iconv.decodeStream("ISO-8859-1"))
+      .pipe(iconv.encodeStream("utf8"))
+      .pipe(outStream);
 
     outStream.on("close", () => {
-      fs.rename(
-        tempPath,
-        filePath,
-        (error) => (error ? reject(error) : resolve()),
-      );
+      resolve();
     });
   });
 }

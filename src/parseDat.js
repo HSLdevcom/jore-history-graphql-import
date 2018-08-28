@@ -9,6 +9,7 @@ const isWhitespaceOnly = /^\s*$/;
 function parseLine(line, fields, knex, st) {
   const values = {};
   let index = 1;
+
   fields.forEach(({ length, name, type }) => {
     if (name) {
       const value = line.substring(index, index + length).trim();
@@ -45,49 +46,70 @@ function parseLine(line, fields, knex, st) {
     }
     index += length;
   });
-  if (values.lat && values.lon) {
-    values.point = st.geomFromText(`Point(${values.lon} ${values.lat})`, 4326);
-  }
-  if (values.x && values.y) {
+
+  if (typeof values.lat !== "undefined" && typeof values.lon !== "undefined") {
+    values.point = st.geomFromText(
+      `POINT(${_.get(values, "lon", 0)} ${_.get(values, "lat", 0)})`,
+      4326,
+    );
+  } else if (
+    typeof values.x !== "undefined" &&
+    typeof values.y !== "undefined"
+  ) {
     values.point = knex.raw(
-      `ST_Transform(ST_GeomFromText('Point(${values.x} ${
-        values.y
-      })',2392),4326)`,
+      `ST_Transform(ST_GeomFromText('POINT(${_.get(values, "x", 0)} ${_.get(
+        values,
+        "y",
+        0,
+      )})',2392),4326)`,
     );
   }
+
   return values;
 }
 
 function getIndexForTable(tableName) {
   const tableSchema = _.get(schema, tableName, false);
-  return _.get(tableSchema, "fields", []).reduceRight((indexName, field) => {
-    const name = _.get(field, "name", indexName);
+  const indices = _.get(tableSchema, "fields", []).reduceRight(
+    (indexNames, field) => {
+      const name = _.get(field, "name", "");
 
-    if (
-      _.get(field, "primary", false) ||
-      _.get(field, "unique", false) ||
-      _.get(field, "index", false)
-    ) {
-      return name;
-    }
+      if (
+        (_.get(field, "primary", false) ||
+          _.get(
+            field,
+            "unique",
+            false,
+          )) /*||
+          _.get(field, "index", false)*/ &&
+        name
+      ) {
+        indexNames.push(name);
+      }
 
-    return indexName;
-  }, "");
+      return indexNames;
+    },
+    [],
+  );
+
+  return indices;
 }
 
 function parseDat(filename, fields, knex, tableName, trx, st) {
-  const indexColumn = getIndexForTable(tableName);
+  const indexColumns = getIndexForTable(tableName);
 
   const insertLines = async (lines) => {
+    const insertData = lines;
+
     console.log(
-      `Inserting ${lines.length} lines from ${filename} to ${tableName}`,
+      `Inserting ${insertData.length} lines from ${filename} to ${tableName}`,
     );
 
     await upsert({
       db: knex,
       tableName: `jore.${tableName}`,
-      itemData: lines,
-      conflictTarget: indexColumn,
+      itemData: insertData,
+      conflictTarget: indexColumns,
     });
   };
 
@@ -100,11 +122,12 @@ function parseDat(filename, fields, knex, tableName, trx, st) {
     lineReader.on("line", async (line) => {
       try {
         if (!isWhitespaceOnly.test(line)) {
-          lines = [...lines, parseLine(line, fields, knex, st)];
+          const parsedLine = parseLine(line, fields, knex, st);
+          lines = [...lines, parsedLine];
         }
         if (lines.length >= 2000) {
           lineReader.pause();
-          const linesToInsert = lines;
+          const linesToInsert = [...lines];
           lines = [];
           await insertLines(linesToInsert);
           lineReader.resume();

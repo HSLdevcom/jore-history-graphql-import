@@ -1,7 +1,8 @@
 .git
 .gitignore
 node_modules
-data/**
+data
+processed
 !data/terminaaliryhma.dat
 postgres-data
 downloads

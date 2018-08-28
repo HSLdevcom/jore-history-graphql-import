@@ -36,3 +36,5 @@ all.zip
 postgres-data
 downloads
 data
+processed
+!data/terminaaliryhma.dat

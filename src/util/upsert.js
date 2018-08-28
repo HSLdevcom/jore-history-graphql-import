@@ -1,3 +1,5 @@
+const _ = require("lodash");
+
 /**
  * Perform an "Upsert" using the "INSERT ... ON CONFLICT ... " syntax in PostgreSQL 9.5
  * @link http://www.postgresql.org/docs/9.5/static/sql-insert.html
@@ -28,46 +30,56 @@ module.exports = async function upsert({
     .map((c) => db.raw("?? = EXCLUDED.??", [c, c]).toString())
     .join(",\n");
 
-  let valuesPreparedString = "";
-  let preparedValues = [];
-  itemsArray.forEach((item) => {
-    valuesPreparedString += "(";
-    for (let i = 0; i < itemKeys.length - 1; i += 1) {
-      valuesPreparedString += "?, ";
-    }
-    valuesPreparedString += "?), ";
-    preparedValues = preparedValues.concat(Object.values(item));
-  });
-  // Remove last trailing comma
-  valuesPreparedString = valuesPreparedString.replace(/,\s*$/, "");
+  const hasConflicts = _.difference(itemKeys, conflictTarget).length !== 0;
+
+  const valuesPreparedString = itemsArray
+    .map(
+      (item) =>
+        `(${Object.keys(item)
+          .map(() => "?")
+          .join(",")})`,
+    )
+    .join(",");
+
+  const preparedValues = _.flatten(
+    itemsArray.map((item) => Object.values(item)),
+  );
 
   // if we have an array of conflicting targets to ignore process it
   let conflict = "";
+  let conflictKeys = [];
+
   if (conflictTarget) {
-    conflict += "(";
-    if (Array.isArray(conflictTarget)) {
-      for (let i = 0; i < conflictTarget.length - 1; i += 1) {
-        conflict += "??, ";
-      }
-      preparedValues = preparedValues.concat(conflictTarget);
-    } else {
-      preparedValues.push(conflictTarget);
+    if (Array.isArray(conflictTarget) && conflictTarget.length !== 0) {
+      conflict = `(${conflictTarget.map(() => "??").join(",")})`;
+      conflictKeys = conflictKeys.concat(conflictTarget);
+    } else if (typeof conflictTarget === "string") {
+      conflict = "(??)";
+      conflictKeys.push(conflictTarget);
     }
-    conflict += "??)";
   }
 
   const itemKeysPlaceholders = itemKeys.map(() => "??").join(",");
 
-  const query = db.raw(
-    `
-INSERT INTO ?? (${itemKeysPlaceholders})
+  let rawString = `INSERT INTO ?? (${itemKeysPlaceholders})
 VALUES ${valuesPreparedString}
 ON CONFLICT ${conflict} DO UPDATE SET
 ${exclusions}
-RETURNING *;
-    `.trim(),
-    [tableName, ...itemKeys, ...preparedValues],
-  );
+RETURNING *;`;
+
+  if (!hasConflicts || !conflict) {
+    rawString = `INSERT INTO ?? (${itemKeysPlaceholders})
+VALUES ${valuesPreparedString}
+ON CONFLICT DO NOTHING
+RETURNING *;`;
+  }
+
+  const query = db.raw(rawString, [
+    tableName,
+    ...itemKeys,
+    ...preparedValues,
+    ...conflictKeys,
+  ]);
 
   return query;
 };

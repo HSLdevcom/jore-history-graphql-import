@@ -13,7 +13,8 @@ const st = require("knex-postgis")(knex);
 const parseDat = require("./parseDat");
 const tables = require("./schema");
 
-const sourcePath = (filename) => path.join(__dirname, "..", "data", filename);
+const sourcePath = (filename) =>
+  path.join(__dirname, "..", "processed", filename);
 
 knex
   .transaction(async (trx) => {
