@@ -75,13 +75,7 @@ function getIndexForTable(tableName) {
       const name = _.get(field, "name", "");
 
       if (
-        (_.get(field, "primary", false) ||
-          _.get(
-            field,
-            "unique",
-            false,
-          )) /*||
-          _.get(field, "index", false)*/ &&
+        (_.get(field, "primary", false) || _.get(field, "unique", false)) &&
         name
       ) {
         indexNames.push(name);
