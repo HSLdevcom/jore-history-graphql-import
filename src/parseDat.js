@@ -74,6 +74,8 @@ function getIndexForTable(tableName) {
     (indexNames, field) => {
       const name = _.get(field, "name", "");
 
+      // If this field is an unique index, we're interested in it. Do not add
+      // non-unique indices here.
       if (
         (_.get(field, "primary", false) || _.get(field, "unique", false)) &&
         name
@@ -93,16 +95,14 @@ function parseDat(filename, fields, knex, tableName, trx, st) {
   const indexColumns = getIndexForTable(tableName);
 
   const insertLines = async (lines) => {
-    const insertData = lines;
-
     console.log(
-      `Inserting ${insertData.length} lines from ${filename} to ${tableName}`,
+      `Inserting ${lines.length} lines from ${filename} to ${tableName}`,
     );
 
     await upsert({
       db: knex,
       tableName: `jore.${tableName}`,
-      itemData: insertData,
+      itemData: lines,
       conflictTarget: indexColumns,
     });
   };

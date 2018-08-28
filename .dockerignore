@@ -3,7 +3,6 @@
 node_modules
 data
 processed
-!data/terminaaliryhma.dat
 postgres-data
 downloads
-migrations
+tmp

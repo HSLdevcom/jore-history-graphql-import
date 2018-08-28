@@ -49,7 +49,7 @@ module.exports = async function upsert({
   let conflict = "";
   let conflictKeys = [];
 
-  if (conflictTarget) {
+  if (conflictTarget && hasConflicts) {
     if (Array.isArray(conflictTarget) && conflictTarget.length !== 0) {
       conflict = `(${conflictTarget.map(() => "??").join(",")})`;
       conflictKeys = conflictKeys.concat(conflictTarget);
@@ -74,12 +74,8 @@ ON CONFLICT DO NOTHING
 RETURNING *;`;
   }
 
-  const query = db.raw(rawString, [
-    tableName,
-    ...itemKeys,
-    ...preparedValues,
-    ...conflictKeys,
-  ]);
+  const bindings = [tableName, ...itemKeys, ...preparedValues, ...conflictKeys];
+  const query = db.raw(rawString, bindings);
 
   return query;
 };
