@@ -18,7 +18,6 @@ function parseLine(line, fields, knex, st) {
       } else if (type === "decimal") {
         values[name] = parseFloat(value);
         if (Number.isNaN(values[name])) {
-          console.log(values[name], value);
           throw new Error(
             `Failed to parse value for field ${name}. Line:\n${line}`,
           );
