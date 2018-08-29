@@ -22,9 +22,8 @@ knex
       return parseDat(
         sourcePath(tables[tableName].filename),
         tables[tableName].fields,
-        knex,
-        tableName,
         trx,
+        tableName,
         st,
       );
     }
@@ -44,10 +43,12 @@ knex
     await loadTable("point_geometry");
     await loadTable("departure");
     await loadTable("note");
-    await trx.raw(createGeometrySQL);
+
+    return trx.raw(createGeometrySQL);
   })
-  .then(() => knex.destroy())
+  .then(() => console.log("Import succeeded."))
   .catch((err) => {
     console.error(err);
     process.exit(1);
-  });
+  })
+  .finally(() => knex.destroy());

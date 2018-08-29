@@ -91,7 +91,7 @@ function getIndexForTable(tableName) {
   return indices;
 }
 
-function parseDat(filename, fields, knex, tableName, trx, st) {
+function parseDat(filename, fields, knex, tableName, st) {
   const indexColumns = getIndexForTable(tableName);
 
   const insertLines = async (lines) => {
