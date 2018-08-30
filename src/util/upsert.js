@@ -15,7 +15,7 @@ module.exports = async function upsert({
   db,
   tableName,
   itemData,
-  conflictTarget,
+  conflictTarget = [],
 }) {
   let itemsArray = [];
   if (Array.isArray(itemData)) {
@@ -24,13 +24,16 @@ module.exports = async function upsert({
     itemsArray[0] = itemData;
   }
   const itemKeys = Object.keys(itemsArray[0]);
+  const conflictKeys = Array.isArray(conflictTarget)
+    ? conflictTarget
+    : [conflictTarget];
 
   const exclusions = itemKeys
-    .filter((c) => c !== conflictTarget)
-    .map((c) => db.raw("?? = EXCLUDED.??", [c, c]).toString())
+    .filter((key) => !conflictKeys.includes(key))
+    .map((key) => db.raw("?? = EXCLUDED.??", [key, key]).toString())
     .join(",\n");
 
-  const hasConflicts = _.difference(itemKeys, conflictTarget).length !== 0;
+  const hasConflicts = _.difference(itemKeys, conflictKeys).length !== 0;
 
   const valuesPreparedString = itemsArray
     .map(
@@ -47,16 +50,9 @@ module.exports = async function upsert({
 
   // if we have an array of conflicting targets to ignore process it
   let conflict = "";
-  let conflictKeys = [];
 
-  if (conflictTarget && hasConflicts) {
-    if (Array.isArray(conflictTarget) && conflictTarget.length !== 0) {
-      conflict = `(${conflictTarget.map(() => "??").join(",")})`;
-      conflictKeys = conflictKeys.concat(conflictTarget);
-    } else if (typeof conflictTarget === "string") {
-      conflict = "(??)";
-      conflictKeys.push(conflictTarget);
-    }
+  if (conflictKeys && conflictKeys.length !== 0 && hasConflicts) {
+    conflict = `(${conflictKeys.map(() => "??").join(",")})`;
   }
 
   const itemKeysPlaceholders = itemKeys.map(() => "??").join(",");
