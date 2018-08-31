@@ -24,7 +24,6 @@ build/Release
 # https://www.npmjs.org/doc/misc/npm-faq.html#should-i-check-my-node_modules-folder-into-git-
 node_modules
 bower_components
-coverage
 tmp
 
 # Users Environment Variables
@@ -35,3 +34,7 @@ route-maps/**
 dist
 all.zip
 postgres-data
+downloads
+data
+processed
+!terminaaliryhma.dat
