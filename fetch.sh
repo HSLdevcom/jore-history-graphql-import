@@ -1,11 +1,9 @@
 #!/bin/bash
 set -e
 
-FETCH_DIR_NAME=${FETCH_DIR:-karttainfopoiminta_test} # Default value for FETCH_DIR
-
 mkdir -p /tmp/build
 
-curl --list-only ftp://195.255.176.166/${FETCH_DIR_NAME}/ --user ${USERNAME}:${PASSWORD} > /tmp/allfiles.txt
+curl --list-only http://dev-kartat.hsldev.com/poiminta/  | jq -r '.[0].name' > /tmp/allfiles.txt
 
 grep -E '^.*\.zip$' /tmp/allfiles.txt > /tmp/latestfile.txt
 export LATEST_FILE=`tail -1 /tmp/latestfile.txt`
@@ -23,7 +21,7 @@ fi
 
 rm -rf /tmp/build/*
 
-curl ftp://195.255.176.166/${FETCH_DIR_NAME}/${LATEST_FILE} --user ${USERNAME}:${PASSWORD} --output /tmp/build/${LATEST_FILE}
+curl http://dev-kartat.hsldev.com/poiminta/${LATEST_FILE} --output /tmp/build/${LATEST_FILE}
 
 ln -s /tmp/build/${LATEST_FILE} /tmp/build/latest.zip
 echo "Latest build can be accessed as /tmp/build/latest.zip"

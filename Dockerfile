@@ -1,6 +1,6 @@
 FROM node:10
 
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y unzip
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y unzip && apt-get install -y jq
 
 ENV WORK /opt/jore
 
