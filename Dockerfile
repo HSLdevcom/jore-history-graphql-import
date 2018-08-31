@@ -16,10 +16,4 @@ RUN yarn install
 
 # Copy app source
 COPY . ${WORK}
-
-# Fetch and import data
-CMD ./fetch.sh && \
-  unzip -o /tmp/build/latest.zip -d ${WORK}/data && \
-  cp terminaaliryhma.dat ${WORK}/data/terminaaliryhma.dat && \
-  yarn run docker:knex migrate:latest && \
-  yarn start
+CMD bash
