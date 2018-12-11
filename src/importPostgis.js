@@ -43,6 +43,7 @@ knex
     await loadTable("point_geometry");
     await loadTable("departure");
     await loadTable("note");
+    await loadTable("equipment");
 
     return trx.raw(createGeometrySQL);
   })

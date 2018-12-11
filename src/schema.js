@@ -40,13 +40,11 @@ module.exports = {
         length: 20,
         name: "address_fi",
         type: "string",
-        // TODO: Add when data conforms notNullable: true,
       },
       {
         length: 20,
         name: "address_se",
         type: "string",
-        // TODO: Add when data conforms notNullable: true,
       },
       { length: 3, name: "platform", type: "string" },
       { length: 7 },
@@ -62,10 +60,17 @@ module.exports = {
       },
       { length: 8 },
       { length: 8 },
-      { length: 1 },
+      {
+        length: 1,
+        name: "accessibility_class",
+        type: "integer",
+      },
       { length: 15, name: "heading", type: "string" },
-      { length: 1 },
-      { length: 3 },
+      {
+        length: 3,
+        name: "stop_radius",
+        type: "integer",
+      },
       {
         length: 7,
         name: "terminal_id",
@@ -139,8 +144,8 @@ module.exports = {
         type: "string",
       },
       { length: 14 },
-      { length: 8, name: "lat", type: "decimal" },
-      { length: 8, name: "lon", type: "decimal" },
+      { length: 9, name: "lat", type: "decimal" },
+      { length: 9, name: "lon", type: "decimal" },
     ],
   },
   terminal_group: {
@@ -188,8 +193,8 @@ module.exports = {
         type: "string",
       },
       { length: 14 },
-      { length: 8, name: "lat", type: "decimal" },
-      { length: 8, name: "lon", type: "decimal" },
+      { length: 9, name: "lat", type: "decimal" },
+      { length: 9, name: "lon", type: "decimal" },
     ],
   },
   line: {
@@ -683,6 +688,43 @@ module.exports = {
       },
       { name: "outliers", type: "integer" },
       { name: "min_likelihood", type: "float" },
+    ],
+  },
+  equipment: {
+    filename: "kalusto.dat",
+    fields: [
+      {
+        length: 1,
+        name: "class",
+        type: "string",
+      },
+      {
+        length: 7,
+        name: "registry_nr",
+        type: "string",
+        index: true,
+        notNullable: true,
+      },
+      {
+        length: 2,
+        name: "age",
+        type: "string",
+      },
+      {
+        length: 10,
+        name: "type",
+        type: "string",
+      },
+      {
+        length: 1,
+        name: "multi_axle",
+        type: "integer",
+      },
+      {
+        length: 20,
+        name: "exterior_color",
+        type: "string",
+      },
     ],
   },
 };
