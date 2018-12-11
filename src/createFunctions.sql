@@ -171,7 +171,7 @@ create type jore.departure_group as (
   vehicle       character varying(3)[]
 );
 
-create function jore.route_departures_gropuped(route jore.route, date date) returns setof jore.departure_group as $$
+create function jore.route_departures_grouped(route jore.route, date date) returns setof jore.departure_group as $$
   select departure.stop_id, departure.route_id, departure.direction, array_agg(departure.day_type), is_next_day,
     departure.hours, departure.minutes, departure.is_accessible, departure.date_begin, departure.date_end,
     departure.stop_role, departure.note, array_agg(departure.vehicle)
@@ -185,7 +185,7 @@ create function jore.route_departures_gropuped(route jore.route, date date) retu
     departure.is_accessible, departure.date_begin, departure.date_end, departure.stop_role, departure.note);
 $$ language sql stable;
 
-create function jore.route_segment_departures_gropuped(route_segment jore.route_segment, date date) returns setof jore.departure_group as $$
+create function jore.route_segment_departures_grouped(route_segment jore.route_segment, date date) returns setof jore.departure_group as $$
   select departure.stop_id, departure.route_id, departure.direction, array_agg(departure.day_type), is_next_day,
     departure.hours, departure.minutes, departure.is_accessible, departure.date_begin, departure.date_end,
     departure.stop_role, departure.note, array_agg(departure.vehicle)
@@ -200,7 +200,7 @@ create function jore.route_segment_departures_gropuped(route_segment jore.route_
     departure.is_accessible, departure.date_begin, departure.date_end, departure.stop_role, departure.note);
 $$ language sql stable;
 
-create function jore.stop_departures_gropuped(stop jore.stop, date date) returns setof jore.departure_group as $$
+create function jore.stop_departures_grouped(stop jore.stop, date date) returns setof jore.departure_group as $$
   select departure.stop_id, departure.route_id, departure.direction, array_agg(departure.day_type), is_next_day,
     departure.hours, departure.minutes, departure.is_accessible, departure.date_begin, departure.date_end,
     departure.stop_role, departure.note, array_agg(departure.vehicle)
