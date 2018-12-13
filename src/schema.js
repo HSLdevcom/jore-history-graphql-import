@@ -60,11 +60,8 @@ module.exports = {
       },
       { length: 8 },
       { length: 8 },
-      {
-        length: 1,
-        name: "accessibility_class",
-        type: "integer",
-      },
+      { length: 1 },
+      { length: 1 },
       { length: 15, name: "heading", type: "string" },
       {
         length: 3,
@@ -75,12 +72,14 @@ module.exports = {
         length: 7,
         name: "terminal_id",
         type: "string",
+        index: true,
         foreign: "terminal.terminal_id",
       },
       {
         length: 6,
         name: "stop_area_id",
         type: "string",
+        index: true,
         foreign: "stop_area.stop_area_id",
       },
       {
@@ -127,10 +126,7 @@ module.exports = {
         length: 7,
         name: "terminal_id",
         type: "string",
-        unique: true,
         primary: true,
-        index: true,
-        notNullable: true,
       },
       {
         length: 40,
@@ -148,27 +144,6 @@ module.exports = {
       { length: 9, name: "lon", type: "decimal" },
     ],
   },
-  terminal_group: {
-    filename: "terminaaliryhma.dat",
-    fields: [
-      {
-        length: 7,
-        name: "terminal_id_from",
-        type: "string",
-        index: true,
-        foreign: "terminal.terminal_id",
-        notNullable: true,
-      },
-      {
-        length: 7,
-        name: "terminal_id_to",
-        type: "string",
-        index: true,
-        foreign: "terminal.terminal_id",
-        notNullable: true,
-      },
-    ],
-  },
   stop_area: {
     filename: "pysakkialue.dat",
     fields: [
@@ -176,9 +151,7 @@ module.exports = {
         length: 6,
         name: "stop_area_id",
         type: "string",
-        unique: true,
         primary: true,
-        index: true,
         notNullable: true,
       },
       {
@@ -233,7 +206,6 @@ module.exports = {
         length: 30,
         name: "destination_fi",
         type: "string",
-        // TODO: Add when data conforms notNullable: true,
       },
       {
         length: 30,
@@ -316,6 +288,7 @@ module.exports = {
         length: 7,
         name: "originstop_id",
         type: "string",
+        index: true,
         foreign: "stop.stop_id",
         notNullable: true,
       },
@@ -340,6 +313,7 @@ module.exports = {
         length: 7,
         name: "destinationstop_id",
         type: "string",
+        index: true,
         foreign: "stop.stop_id",
         notNullable: true,
       },
@@ -490,7 +464,7 @@ module.exports = {
         notNullable: true,
       },
     ],
-    // primary: ["route_id", "direction", "date_begin", "date_end", "index"]
+    primary: ["route_id", "direction", "date_begin", "date_end", "index"],
   },
   departure: {
     filename: "aikat.dat",
@@ -603,6 +577,17 @@ module.exports = {
         ],
       },
     ],
+    // This is a bit silly, I know, but it's the only way to uniquely identify a departure.
+    primary: [
+      "route_id",
+      "direction",
+      "date_begin",
+      "date_end",
+      "hours",
+      "minutes",
+      "stop_id",
+      "day_type",
+    ],
   },
   note: {
     filename: "linteks.dat",
@@ -637,15 +622,14 @@ module.exports = {
         length: 8,
         name: "date_begin",
         type: "date",
-        // TODO: Add when data conforms notNullable: true,
       },
       {
         length: 8,
         name: "date_end",
         type: "date",
-        // TODO: Add when data conforms notNullable: true,
       },
     ],
+    primary: ["line_id", "note_id", "note_type", "date_begin", "date_end"],
   },
   geometry: {
     fields: [
@@ -702,7 +686,7 @@ module.exports = {
         length: 7,
         name: "registry_nr",
         type: "string",
-        index: true,
+        primary: true,
         notNullable: true,
       },
       {

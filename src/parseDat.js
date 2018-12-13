@@ -1,8 +1,6 @@
 const fs = require("fs");
 const readline = require("readline");
 const _ = require("lodash");
-const upsert = require("./util/upsert");
-const schema = require("./schema");
 
 const isWhitespaceOnly = /^\s*$/;
 
@@ -67,47 +65,10 @@ function parseLine(line, fields, knex, st) {
   return values;
 }
 
-function getIndexForTable(tableName) {
-  const tableSchema = _.get(schema, tableName, false);
-  const indices = _.get(tableSchema, "fields", []).reduceRight(
-    (indexNames, field) => {
-      const name = _.get(field, "name", "");
-
-      // If this field is an unique index, we're interested in it. Do not add
-      // non-unique indices here.
-      if (
-        (_.get(field, "primary", false) || _.get(field, "unique", false)) &&
-        name
-      ) {
-        indexNames.push(name);
-      }
-
-      return indexNames;
-    },
-    [],
-  );
-
-  return indices;
-}
-
 function parseDat(filename, fields, knex, tableName, st) {
-  const indexColumns = getIndexForTable(tableName);
-
-  const insertLines = async (lines) => {
-    console.log(
-      `Inserting ${lines.length} lines from ${filename} to ${tableName}`,
-    );
-
-    await upsert({
-      db: knex,
-      tableName: `jore.${tableName}`,
-      itemData: lines,
-      conflictTarget: indexColumns,
-    });
-  };
-
   return new Promise((resolve, reject) => {
-    let lines = [];
+    const lines = [];
+
     const lineReader = readline.createInterface({
       input: fs.createReadStream(filename),
     });
@@ -116,14 +77,7 @@ function parseDat(filename, fields, knex, tableName, st) {
       try {
         if (!isWhitespaceOnly.test(line)) {
           const parsedLine = parseLine(line, fields, knex, st);
-          lines = [...lines, parsedLine];
-        }
-        if (lines.length >= 2000) {
-          lineReader.pause();
-          const linesToInsert = [...lines];
-          lines = [];
-          await insertLines(linesToInsert);
-          lineReader.resume();
+          lines.push(parsedLine);
         }
       } catch (error) {
         reject(error);
@@ -132,8 +86,11 @@ function parseDat(filename, fields, knex, tableName, st) {
 
     lineReader.on("close", async () => {
       try {
-        await insertLines(lines);
-        resolve();
+        console.log(
+          `Read ${lines.length} lines from ${filename} to ${tableName}`,
+        );
+
+        resolve(lines);
       } catch (error) {
         reject(error);
       }

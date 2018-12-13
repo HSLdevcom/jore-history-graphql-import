@@ -317,13 +317,6 @@ create function jore.stop_siblings(stop jore.stop) returns setof jore.stop as $$
     and original_stop.lon = stop.lon;
 $$ language sql stable;
 
-create function jore.terminal_siblings(terminal jore.terminal) returns setof jore.terminal as $$
-  select terminal_to.*
-  from jore.terminal_group terminal_group
-  join jore.terminal terminal_to on terminal_to.terminal_id = terminal_group.terminal_id_to
-  where terminal_group.terminal_id_from = terminal.terminal_id;
-$$ language sql stable;
-
 create or replace function jore.stop_modes(stop jore.stop, date date) returns setof jore.mode as $$
   select distinct jore.route_mode(jore.route_segment_route(route_segment, date))
   from jore.stop_route_segments_for_date(stop, date) route_segment;

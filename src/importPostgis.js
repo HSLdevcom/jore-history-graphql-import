@@ -1,5 +1,9 @@
 const fs = require("fs-extra");
 const path = require("path");
+const upsert = require("./util/upsert");
+const parseDat = require("./parseDat");
+const schema = require("./schema");
+const _ = require("lodash");
 
 const knex = require("knex")({
   dialect: "postgres",
@@ -10,46 +14,90 @@ const knex = require("knex")({
 // install postgis functions in knex.postgis;
 const st = require("knex-postgis")(knex);
 
-const parseDat = require("./parseDat");
-const tables = require("./schema");
-
 const sourcePath = (filename) =>
   path.join(__dirname, "..", "processed", filename);
 
+async function readTable(tableName, trx) {
+  return parseDat(
+    sourcePath(schema[tableName].filename),
+    schema[tableName].fields,
+    trx,
+    tableName,
+    st,
+  );
+}
+
+function getIndexForTable(tableName) {
+  const tableSchema = _.get(schema, tableName, false);
+  const indices = _.get(tableSchema, "fields", []).reduceRight(
+    (indexNames, field) => {
+      const name = _.get(field, "name", "");
+
+      // If this field is an unique index, we're interested in it. Do not add
+      // non-unique indices here.
+      if (
+        (_.get(field, "primary", false) || _.get(field, "unique", false)) &&
+        name
+      ) {
+        indexNames.push(name);
+      }
+
+      return indexNames;
+    },
+    [],
+  );
+
+  return indices;
+}
+
+async function insertLines(lines, tableName, trx) {
+  const indexColumns = getIndexForTable(tableName);
+  const chunks = _.chunk(lines, 2000);
+
+  for (const linesChunk of chunks) {
+    console.time("Upsert");
+
+    await upsert({
+      db: trx,
+      tableName: `jore.${tableName}`,
+      itemData: linesChunk,
+      conflictTarget: indexColumns,
+    });
+
+    console.timeEnd("Upsert");
+  }
+}
+
 knex
   .transaction(async (trx) => {
-    function loadTable(tableName) {
-      return parseDat(
-        sourcePath(tables[tableName].filename),
-        tables[tableName].fields,
-        trx,
-        tableName,
-        st,
-      );
-    }
-
     const createGeometrySQL = await fs.readFile(
       path.join(__dirname, "createGeometry.sql"),
       "utf8",
     );
 
-    await loadTable("terminal");
-    await loadTable("stop_area");
-    await loadTable("stop");
-    await loadTable("terminal_group");
-    await loadTable("line");
-    await loadTable("route");
-    await loadTable("route_segment");
-    await loadTable("point_geometry");
-    await loadTable("departure");
-    await loadTable("note");
-    await loadTable("equipment");
+    async function importTable(tableName) {
+      const lines = await readTable(tableName, trx);
+      await insertLines(lines, tableName, trx);
+    }
+
+    await importTable("stop_area");
+    await importTable("terminal");
+    await importTable("stop");
+    await importTable("line");
+    await importTable("route");
+    await importTable("route_segment");
+    await importTable("point_geometry");
+    await importTable("departure");
+    await importTable("note");
+    await importTable("equipment");
 
     return trx.raw(createGeometrySQL);
   })
   .then(() => console.log("Import succeeded."))
   .catch((err) => {
     console.error(err);
-    process.exit(1);
   })
-  .finally(() => knex.destroy());
+  .finally(() => {
+    knex.destroy();
+    process.exit(1);
+  });

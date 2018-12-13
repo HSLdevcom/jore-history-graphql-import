@@ -71,7 +71,5 @@ RETURNING *;`;
   }
 
   const bindings = [tableName, ...itemKeys, ...preparedValues, ...conflictKeys];
-  const query = db.raw(rawString, bindings);
-
-  return query;
+  return db.raw(rawString, bindings);
 };

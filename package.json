@@ -3,9 +3,9 @@
   "version": "0.0.1",
   "description": "Data importer for jore-history-graphql",
   "scripts": {
-    "start": "node src/preprocess.js && node --max_old_space_size=4096 src/importPostgis.js",
+    "start": "node src/preprocess.js && node --max_old_space_size=8192 src/importPostgis.js",
     "preprocess": "node src/preprocess.js",
-    "start:local": "PG_CONNECTION_STRING=postgres://postgres:mysecretpassword@localhost:5678/postgres node --max_old_space_size=4096 src/importPostgis.js",
+    "start:local": "PG_CONNECTION_STRING=postgres://postgres:mysecretpassword@localhost:5678/postgres node --max_old_space_size=8192 src/importPostgis.js",
     "lint": "eslint src --fix",
     "prettier": "prettier */**.{js,json} --write",
     "knex": "PG_CONNECTION_STRING=postgres://postgres:mysecretpassword@localhost:5678/postgres knex",
@@ -26,11 +26,11 @@
     "chardet": "^0.7.0",
     "fs-extra": "^7.0.0",
     "iconv-lite": "^0.4.24",
-    "knex": "^0.15.2",
+    "knex": "^0.16.2",
     "knex-postgis": "^0.7.0",
     "lodash": "^4.17.10",
     "peek-stream": "^1.1.3",
-    "pg": "^7.4.3",
+    "pg": "^7.7.1",
     "stream-splicer": "^2.0.0"
   },
   "devDependencies": {
