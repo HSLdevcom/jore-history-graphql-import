@@ -629,7 +629,7 @@ module.exports = {
         type: "date",
       },
     ],
-    primary: ["line_id", "note_id", "note_type", "date_begin", "date_end"],
+    primary: ["line_id", "note_id", "note_type"],
   },
   geometry: {
     fields: [
