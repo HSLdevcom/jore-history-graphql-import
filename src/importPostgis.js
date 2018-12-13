@@ -9,6 +9,10 @@ const knex = require("knex")({
   dialect: "postgres",
   client: "pg",
   connection: process.env.PG_CONNECTION_STRING,
+  pool: {
+    min: 0,
+    max: 1000,
+  },
 });
 
 // install postgis functions in knex.postgis;
@@ -17,13 +21,14 @@ const st = require("knex-postgis")(knex);
 const sourcePath = (filename) =>
   path.join(__dirname, "..", "processed", filename);
 
-async function readTable(tableName, trx) {
+async function readTable(tableName, onChunk) {
   return parseDat(
     sourcePath(schema[tableName].filename),
     schema[tableName].fields,
-    trx,
     tableName,
+    knex,
     st,
+    onChunk,
   );
 }
 
@@ -50,24 +55,6 @@ function getIndexForTable(tableName) {
   return indices;
 }
 
-async function insertLines(lines, tableName, trx) {
-  const indexColumns = getIndexForTable(tableName);
-  const chunks = _.chunk(lines, 2000);
-
-  for (const linesChunk of chunks) {
-    console.time("Upsert");
-
-    await upsert({
-      db: trx,
-      tableName: `jore.${tableName}`,
-      itemData: linesChunk,
-      conflictTarget: indexColumns,
-    });
-
-    console.timeEnd("Upsert");
-  }
-}
-
 knex
   .transaction(async (trx) => {
     const createGeometrySQL = await fs.readFile(
@@ -76,20 +63,35 @@ knex
     );
 
     async function importTable(tableName) {
-      const lines = await readTable(tableName, trx);
-      await insertLines(lines, tableName, trx);
+      const indexColumns = getIndexForTable(tableName);
+
+      return readTable(tableName, (lines) =>
+        upsert({
+          db: knex,
+          tableName: `jore.${tableName}`,
+          itemData: lines,
+          conflictTarget: indexColumns,
+        }),
+      );
     }
 
+    // These tables are depended upon through foreign keys, so they need to
+    // be imported first and in this order.
     await importTable("stop_area");
     await importTable("terminal");
     await importTable("stop");
-    await importTable("line");
-    await importTable("route");
-    await importTable("route_segment");
-    await importTable("point_geometry");
-    await importTable("departure");
-    await importTable("note");
-    await importTable("equipment");
+
+    const ops = [
+      importTable("line"),
+      importTable("route"),
+      importTable("route_segment"),
+      importTable("point_geometry"),
+      importTable("departure"),
+      importTable("note"),
+      importTable("equipment"),
+    ];
+
+    await Promise.all(ops);
 
     return trx.raw(createGeometrySQL);
   })

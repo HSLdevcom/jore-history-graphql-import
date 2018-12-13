@@ -65,9 +65,9 @@ function parseLine(line, fields, knex, st) {
   return values;
 }
 
-function parseDat(filename, fields, knex, tableName, st) {
+function parseDat(filename, fields, tableName, knex, st, onChunk) {
   return new Promise((resolve, reject) => {
-    const lines = [];
+    let lines = [];
 
     const lineReader = readline.createInterface({
       input: fs.createReadStream(filename),
@@ -77,7 +77,21 @@ function parseDat(filename, fields, knex, tableName, st) {
       try {
         if (!isWhitespaceOnly.test(line)) {
           const parsedLine = parseLine(line, fields, knex, st);
-          lines.push(parsedLine);
+          lines = [...lines, parsedLine];
+        }
+        if (lines.length >= 1000) {
+          lineReader.pause();
+          const linesToInsert = [...lines];
+          lines = [];
+
+          console.log(
+            `Inserting ${
+              linesToInsert.length
+            } lines from ${filename} to ${tableName}`,
+          );
+
+          await onChunk(linesToInsert);
+          lineReader.resume();
         }
       } catch (error) {
         reject(error);
@@ -86,11 +100,8 @@ function parseDat(filename, fields, knex, tableName, st) {
 
     lineReader.on("close", async () => {
       try {
-        console.log(
-          `Read ${lines.length} lines from ${filename} to ${tableName}`,
-        );
-
-        resolve(lines);
+        await onChunk(lines);
+        resolve();
       } catch (error) {
         reject(error);
       }
