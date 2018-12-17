@@ -545,8 +545,8 @@ module.exports = {
         type: "integer",
         notNullable: true,
       },
-      { length: 4, name: "note", type: "string" },
       { length: 1, name: "vehicle", type: "string" },
+      { length: 4, name: "note", type: "string" },
       {
         length: 1,
         name: "arrival_is_next_day",
@@ -566,7 +566,7 @@ module.exports = {
         notNullable: true,
       },
       {
-        length: 1,
+        length: 2,
         name: "extra_departure",
         type: "enu",
         typeOptions: [
@@ -575,6 +575,16 @@ module.exports = {
           "LV", // Lisälähtö Vara-autolla
           "0",
         ],
+      },
+      {
+        length: 2,
+        name: "terminal_time",
+        type: "integer",
+      },
+      {
+        length: 2,
+        name: "recovery_time",
+        type: "integer",
       },
     ],
     // This is a bit silly, I know, but it's the only way to uniquely identify a departure.
@@ -587,6 +597,7 @@ module.exports = {
       "minutes",
       "stop_id",
       "day_type",
+      "extra_departure",
     ],
   },
   note: {
