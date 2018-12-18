@@ -14,10 +14,30 @@ exports.up = async function(knex) {
       table.integer("recovery_time");
     });
   }
+
+  const hasRequiredEquipment = await schema.hasColumn(
+    "departure",
+    "equipment_requirement",
+  );
+  if (!hasRequiredEquipment) {
+    await schema.table("departure", (table) => {
+      table.integer("equipment_requirement");
+    });
+  }
 };
 
 exports.down = async function(knex) {
   const schema = knex.schema.withSchema("jore");
+
+  const hasRequiredEquipment = await schema.hasColumn(
+    "departure",
+    "equipment_requirement",
+  );
+  if (hasRequiredEquipment) {
+    await schema.table("departure", (table) => {
+      table.dropColumn("equipment_requirement");
+    });
+  }
 
   const hasRecoveryTime = await schema.hasColumn("departure", "recovery_time");
   if (hasRecoveryTime) {
