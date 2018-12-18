@@ -601,7 +601,6 @@ module.exports = {
       "minutes",
       "stop_id",
       "day_type",
-      "extra_departure",
     ],
   },
   note: {
