@@ -26,7 +26,9 @@ exports.down = async function(knex) {
 
   await schema.dropTableIfExists("equipment");
 
-  if (await schema.hasColumn("stop", "stop_radius")) {
+  const stopRadiusExists = await schema.hasColumn("stop", "stop_radius");
+
+  if (stopRadiusExists) {
     await schema.table("stop", async (table) => {
       table.dropColumn("stop_radius");
     });

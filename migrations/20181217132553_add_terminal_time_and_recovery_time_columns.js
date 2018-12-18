@@ -26,30 +26,20 @@ exports.up = async function(knex) {
   }
 };
 
-exports.down = async function(knex) {
+exports.down = async function(knex, bluebird) {
   const schema = knex.schema.withSchema("jore");
 
-  const hasRequiredEquipment = await schema.hasColumn(
-    "departure",
+  const columnsToDrop = [
     "equipment_requirement",
+    "recovery_time",
+    "terminal_time",
+  ];
+
+  const existingColumns = await bluebird.filter(columnsToDrop, (colName) =>
+    schema.hasColumn("departure", colName),
   );
-  if (hasRequiredEquipment) {
-    await schema.table("departure", (table) => {
-      table.dropColumn("equipment_requirement");
-    });
-  }
 
-  const hasRecoveryTime = await schema.hasColumn("departure", "recovery_time");
-  if (hasRecoveryTime) {
-    await schema.table("departure", (table) => {
-      table.dropColumn("recovery_time");
-    });
-  }
-
-  const hasTerminalTime = await schema.hasColumn("departure", "terminal_time");
-  if (hasTerminalTime) {
-    await schema.table("departure", (table) => {
-      table.dropColumn("terminal_time");
-    });
-  }
+  return schema.table("departure", (table) => {
+    existingColumns.forEach((colName) => table.dropColumn(colName));
+  });
 };
