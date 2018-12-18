@@ -387,7 +387,6 @@ module.exports = {
         length: 1,
         name: "pickup_dropoff_type",
         type: "integer",
-        // TODO: Add when data conforms notNullable: true,
       },
       { length: 2 },
       { length: 20, name: "destination_fi", type: "string" },
