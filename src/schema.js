@@ -705,6 +705,13 @@ module.exports = {
         notNullable: true,
       },
       {
+        length: 5,
+        name: "vehicle_id",
+        type: "string",
+        index: true,
+        notNullable: true,
+      },
+      {
         length: 2,
         name: "age",
         type: "string",
