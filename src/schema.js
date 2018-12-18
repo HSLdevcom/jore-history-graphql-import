@@ -6,9 +6,7 @@ module.exports = {
         length: 7,
         name: "stop_id",
         type: "string",
-        unique: true,
         primary: true,
-        index: true,
         notNullable: true,
       },
       { length: 7 },
@@ -400,7 +398,7 @@ module.exports = {
         notNullable: true,
       },
     ],
-    primary: ["route_id", "direction", "date_begin", "date_end", "stop_index"],
+    primary: ["route_id", "direction", "date_begin", "date_end", "stop_id"],
   },
   point_geometry: {
     filename: "reittimuoto.dat",
@@ -433,7 +431,7 @@ module.exports = {
       },
       {
         length: 7,
-        name: "node_id",
+        name: "stop_id",
         type: "string",
         index: true,
         notNullable: true,
@@ -463,7 +461,7 @@ module.exports = {
         notNullable: true,
       },
     ],
-    primary: ["route_id", "direction", "date_begin", "date_end", "index"],
+    primary: ["route_id", "direction", "date_begin", "date_end", "stop_id"],
   },
   departure: {
     filename: "aikat.dat",
@@ -473,14 +471,12 @@ module.exports = {
         name: "stop_id",
         type: "string",
         foreign: "stop.stop_id",
-        index: true,
         notNullable: true,
       },
       {
         length: 6,
         name: "route_id",
         type: "string",
-        index: true,
         notNullable: true,
       },
       {
@@ -687,6 +683,7 @@ module.exports = {
       { name: "outliers", type: "integer" },
       { name: "min_likelihood", type: "float" },
     ],
+    primary: ["route_id", "direction", "date_begin", "date_end"],
   },
   equipment: {
     filename: "kalusto.dat",
