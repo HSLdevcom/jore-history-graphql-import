@@ -34,15 +34,21 @@ async function readTable(tableName, onChunk) {
 
 function getIndexForTable(tableName) {
   const tableSchema = _.get(schema, tableName, false);
+  const compoundPrimary = _.get(tableSchema, "primary", []);
+
   const indices = _.get(tableSchema, "fields", []).reduceRight(
     (indexNames, field) => {
       const name = _.get(field, "name", "");
 
+      if (compoundPrimary.indexOf(name) !== -1) {
+        return indexNames;
+      }
+
       // If this field is an unique index, we're interested in it. Do not add
       // non-unique indices here.
       if (
-        (_.get(field, "primary", false) || _.get(field, "unique", false)) &&
-        name
+        name &&
+        (_.get(field, "primary", false) || _.get(field, "unique", false))
       ) {
         indexNames.push(name);
       }
@@ -52,7 +58,8 @@ function getIndexForTable(tableName) {
     [],
   );
 
-  return indices;
+  const uniqueIndices = _.uniq([...indices, ...compoundPrimary]);
+  return uniqueIndices;
 }
 
 knex
@@ -65,13 +72,15 @@ knex
     async function importTable(tableName) {
       const indexColumns = getIndexForTable(tableName);
 
-      return readTable(tableName, (lines) =>
-        upsert({
-          db: knex,
-          tableName: `jore.${tableName}`,
-          itemData: lines,
-          conflictTarget: indexColumns,
-        }),
+      return knex.transaction((tableTrx) =>
+        readTable(tableName, (lines) =>
+          upsert({
+            db: tableTrx,
+            tableName: `jore.${tableName}`,
+            itemData: lines,
+            conflictTarget: indexColumns,
+          }),
+        ),
       );
     }
 
@@ -87,7 +96,7 @@ knex
       importTable("route_segment"),
       importTable("point_geometry"),
       importTable("departure"),
-      importTable("note"),
+      // importTable("note"),
       importTable("equipment"),
     ];
 

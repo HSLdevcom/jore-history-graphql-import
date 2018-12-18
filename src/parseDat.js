@@ -79,7 +79,7 @@ function parseDat(filename, fields, tableName, knex, st, onChunk) {
           const parsedLine = parseLine(line, fields, knex, st);
           lines = [...lines, parsedLine];
         }
-        if (lines.length >= 1000) {
+        if (lines.length >= 2000) {
           lineReader.pause();
           const linesToInsert = [...lines];
           lines = [];

@@ -23,6 +23,13 @@ module.exports = async function upsert({
   } else {
     itemsArray[0] = itemData;
   }
+
+  if (conflictTarget.length !== 0) {
+    itemsArray = _.uniqBy(itemsArray, (item) =>
+      Object.values(_.pick(item, ...conflictTarget)).join("__"),
+    );
+  }
+
   const itemKeys = Object.keys(itemsArray[0]);
   const conflictKeys = Array.isArray(conflictTarget)
     ? conflictTarget

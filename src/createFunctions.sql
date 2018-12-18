@@ -236,7 +236,7 @@ create function jore.stop_calculated_heading(stop jore.stop) returns numeric as 
             and inner_geometry.direction = outer_geometry.direction
             and inner_geometry.date_begin = outer_geometry.date_begin
             and inner_geometry.date_end = outer_geometry.date_end
-        where outer_geometry.node_id = stop.stop_id
+        where outer_geometry.stop_id = stop.stop_id
           and outer_geometry.node_type = 'P'
     ) as headings;
 $$ language sql stable;

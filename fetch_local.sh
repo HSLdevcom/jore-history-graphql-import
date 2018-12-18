@@ -3,7 +3,7 @@ set -e
 
 mkdir -p ./processed
 mkdir -p ./data
-mkdir -p ./tmp
+mkdir -p ./tmp/build
 
 curl --list-only https://dev-kartat.hsldev.com/poiminta/ | jq -r '.[0].name' > ./tmp/allfiles.txt
 
