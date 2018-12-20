@@ -1,5 +1,5 @@
 /* eslint-disable no-await-in-loop */
-const fs = require("fs");
+const fs = require("fs-extra");
 const path = require("path");
 const readline = require("readline");
 const iconv = require("iconv-lite");
@@ -125,7 +125,8 @@ async function updateEncoding() {
   }
 }
 
-updateEncoding()
+fs.ensureDir(path.join(__dirname, "..", "processed"))
+  .then(() => updateEncoding())
   .then(() => replaceLinebreaks())
   .then(() => replaceGeometryIndexes())
   .catch((error) => {
