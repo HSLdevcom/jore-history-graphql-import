@@ -22,14 +22,21 @@ const sourcePath = (filename) =>
   path.join(__dirname, "..", "processed", filename);
 
 async function readTable(tableName, onChunk) {
-  return parseDat(
-    sourcePath(schema[tableName].filename),
-    schema[tableName].fields,
-    tableName,
-    knex,
-    st,
-    onChunk,
-  );
+  const filepath = sourcePath(schema[tableName].filename);
+  const fileExists = await fs.exists(filepath);
+
+  if (fileExists) {
+    return parseDat(
+      filepath,
+      schema[tableName].fields,
+      tableName,
+      knex,
+      st,
+      onChunk,
+    );
+  } else {
+    return null;
+  }
 }
 
 function getIndexForTable(tableName) {

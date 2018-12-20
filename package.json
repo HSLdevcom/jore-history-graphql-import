@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "description": "Data importer for jore-history-graphql",
   "scripts": {
-    "start": "node src/preprocess.js && node --max_old_space_size=51200 src/importPostgis.js",
+    "start": "node src/preprocess.js && node --max_old_space_size=8192 src/importPostgis.js",
     "preprocess": "node src/preprocess.js",
     "start:local": "PG_CONNECTION_STRING=postgres://postgres:mysecretpassword@localhost:5678/postgres node --max_old_space_size=4092 src/importPostgis.js",
     "lint": "eslint src --fix",
