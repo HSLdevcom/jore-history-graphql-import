@@ -586,6 +586,16 @@ module.exports = {
         name: "equipment_requirement",
         type: "string",
       },
+      {
+        length: 12,
+        name: "equipment_id",
+        type: "string",
+      },
+      {
+        length: 6,
+        name: "operator_id",
+        type: "string",
+      },
     ],
     // This is a bit silly, I know, but it's the only way to uniquely identify a departure.
     primary: [
