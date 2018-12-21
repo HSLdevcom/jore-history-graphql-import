@@ -583,18 +583,33 @@ module.exports = {
       },
       {
         length: 2,
-        name: "equipment_requirement",
+        name: "equipment_type",
+        type: "string",
+      },
+      {
+        length: 2,
+        name: "equipment_required",
         type: "string",
       },
       {
         length: 12,
-        name: "equipment_id",
+        name: "bid_target_id",
         type: "string",
       },
       {
         length: 6,
         name: "operator_id",
         type: "string",
+      },
+      {
+        length: 20,
+        name: "available_operators",
+        type: "string",
+      },
+      {
+        length: 1,
+        name: "trunk_color_required",
+        type: "integer",
       },
     ],
     // This is a bit silly, I know, but it's the only way to uniquely identify a departure.
@@ -735,6 +750,11 @@ module.exports = {
       {
         length: 20,
         name: "exterior_color",
+        type: "string",
+      },
+      {
+        length: 6,
+        name: "operator_id",
         type: "string",
       },
     ],
