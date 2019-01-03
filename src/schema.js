@@ -589,7 +589,7 @@ module.exports = {
       {
         length: 2,
         name: "equipment_required",
-        type: "string",
+        type: "integer",
       },
       {
         length: 12,
