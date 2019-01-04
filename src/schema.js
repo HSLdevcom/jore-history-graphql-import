@@ -708,7 +708,6 @@ module.exports = {
       { name: "outliers", type: "integer" },
       { name: "min_likelihood", type: "float" },
     ],
-    primary: ["route_id", "direction", "date_begin", "date_end"],
   },
   equipment: {
     filename: "kalusto.dat",

@@ -4,6 +4,7 @@ const upsert = require("./util/upsert");
 const parseDat = require("./parseDat");
 const schema = require("./schema");
 const _ = require("lodash");
+const pEachSeries = require("p-each-series");
 
 const knex = require("knex")({
   dialect: "postgres",
@@ -34,9 +35,9 @@ async function readTable(tableName, onChunk) {
       st,
       onChunk,
     );
-  } else {
-    return null;
   }
+
+  return null;
 }
 
 function getIndexForTable(tableName) {
@@ -69,6 +70,16 @@ function getIndexForTable(tableName) {
   return uniqueIndices;
 }
 
+const importSerial = ["stop_area", "terminal", "stop"];
+const importParallel = [
+  "line",
+  "route",
+  "route_segment",
+  "point_geometry",
+  "departure",
+  "equipment",
+];
+
 knex
   .transaction(async (trx) => {
     const createGeometrySQL = await fs.readFile(
@@ -91,25 +102,41 @@ knex
       );
     }
 
-    // These tables are depended upon through foreign keys, so they need to
-    // be imported first and in this order.
-    await importTable("stop_area");
-    await importTable("terminal");
-    await importTable("stop");
+    // eslint-disable-next-line no-unused-vars,no-use-before-define
+    const [_firstArg, _secondArg, ...selectedTables] = process.argv;
 
-    const ops = [
-      importTable("line"),
-      importTable("route"),
-      importTable("route_segment"),
-      importTable("point_geometry"),
-      importTable("departure"),
-      // importTable("note"),
-      importTable("equipment"),
-    ];
+    console.log(
+      "Importing:",
+      selectedTables.length !== 0 ? selectedTables : "all",
+    );
 
-    await Promise.all(ops);
+    let ops;
 
-    return trx.raw(createGeometrySQL);
+    if (selectedTables.length === 0) {
+      // These tables are depended upon through foreign keys, so they need to
+      // be imported first and in this order.
+      await pEachSeries(importSerial, (tableName) => importTable(tableName));
+      ops = importParallel.map(importTable);
+    } else {
+      // If a table from the importSerial table is selected, import them all as they
+      // may have some dependencies between them.
+      if (_.intersection(importSerial, selectedTables).length !== 0) {
+        await pEachSeries(importSerial, (tableName) => importTable(tableName));
+      }
+
+      // Create import promises from the selected tables.
+      ops = _.intersection(importParallel, selectedTables).map(importTable);
+    }
+
+    let promise = Promise.all(ops);
+
+    if (selectedTables.indexOf("geometry") || selectedTables.length === 0) {
+      await promise;
+      promise = trx.raw(createGeometrySQL);
+    }
+
+    // Return the promise for the transaction
+    return promise;
   })
   .then(() => console.log("Import succeeded."))
   .catch((err) => {
@@ -117,5 +144,5 @@ knex
   })
   .finally(() => {
     knex.destroy();
-    process.exit(1);
+    process.exit(0);
   });
