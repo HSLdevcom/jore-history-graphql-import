@@ -414,6 +414,7 @@ module.exports = {
         length: 1,
         name: "direction",
         type: "enu",
+        index: true,
         typeOptions: ["1", "2"],
         notNullable: true,
       },
@@ -421,12 +422,14 @@ module.exports = {
         length: 8,
         name: "date_begin",
         type: "date",
+        index: true,
         notNullable: true,
       },
       {
         length: 8,
         name: "date_end",
         type: "date",
+        index: true,
         notNullable: true,
       },
       {
@@ -461,7 +464,6 @@ module.exports = {
         notNullable: true,
       },
     ],
-    primary: ["route_id", "direction", "date_begin", "date_end", "stop_id"],
   },
   departure: {
     filename: "aikat.dat",
