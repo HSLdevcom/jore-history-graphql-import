@@ -11,6 +11,9 @@ const _ = require("lodash");
  * @param {Object} itemData - a hash of properties to be inserted/updated into the row
  * @returns {knexQuery} - A knexQuery
  */
+
+// TODO: Fix "more than one row returned by a subquery used as an expression"
+
 module.exports = async function upsert({
   db,
   tableName,
