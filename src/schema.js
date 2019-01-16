@@ -175,7 +175,6 @@ module.exports = {
         length: 6,
         name: "line_id",
         type: "string",
-        index: true,
         notNullable: true,
       },
       {

@@ -54,10 +54,7 @@ function getIndexForTable(tableName) {
 
       // If this field is an unique index, we're interested in it. Do not add
       // non-unique indices here.
-      if (
-        name &&
-        (_.get(field, "primary", false) || _.get(field, "unique", false))
-      ) {
+      if (name && _.get(field, "primary", false)) {
         indexNames.push(name);
       }
 
@@ -66,8 +63,7 @@ function getIndexForTable(tableName) {
     [],
   );
 
-  const uniqueIndices = _.uniq([...indices, ...compoundPrimary]);
-  return uniqueIndices;
+  return _.uniq([...indices, ...compoundPrimary]);
 }
 
 const importSerial = ["stop_area", "terminal", "stop"];
@@ -88,15 +84,18 @@ knex
     );
 
     async function importTable(tableName) {
-      const indexColumns = getIndexForTable(tableName);
+      const indices = getIndexForTable(tableName);
+      console.log(`Starting import: ${tableName}`);
 
       return knex.transaction((tableTrx) =>
         readTable(tableName, (lines) =>
           upsert({
-            db: tableTrx,
-            tableName: `jore.${tableName}`,
+            knex,
+            schema: "jore",
+            trx: tableTrx,
+            tableName,
             itemData: lines,
-            conflictTarget: indexColumns,
+            indices,
           }),
         ),
       );

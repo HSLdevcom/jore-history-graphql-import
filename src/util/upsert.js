@@ -1,4 +1,5 @@
 const _ = require("lodash");
+const dateFns = require("date-fns");
 
 /**
  * Perform an "Upsert" using the "INSERT ... ON CONFLICT ... " syntax in PostgreSQL 9.5
@@ -7,79 +8,130 @@ const _ = require("lodash");
  * @source https://gist.github.com/adnanoner/b6c53482243b9d5d5da4e29e109af9bd
  * inspired by: https://gist.github.com/plurch/118721c2216f77640232
  * @param {string} tableName - The name of the database table
- * @param {string} conflictTarget - The column in the table which has a unique index constraint
+ * @param {string} indexColumns - The column in the table which has a unique index constraint
  * @param {Object} itemData - a hash of properties to be inserted/updated into the row
  * @returns {knexQuery} - A knexQuery
  */
 
-// TODO: Fix "more than one row returned by a subquery used as an expression"
-
 module.exports = async function upsert({
-  db,
+  knex,
+  schema,
+  trx,
   tableName,
   itemData,
-  conflictTarget = [],
+  indices: primaryIndices = [],
 }) {
-  let itemsArray = [];
+  let items = [];
   if (Array.isArray(itemData)) {
-    itemsArray = itemData;
+    items = itemData;
   } else {
-    itemsArray[0] = itemData;
+    items[0] = itemData;
   }
 
-  if (conflictTarget.length !== 0) {
-    itemsArray = _.uniqBy(itemsArray, (item) =>
-      Object.values(_.pick(item, ...conflictTarget)).join("__"),
+  // Just insert if we have no clue about any indices
+  if (primaryIndices.length === 0) {
+    return knex
+      .batchInsert(`${schema}.${tableName}`, items, items.length)
+      .transacting(trx);
+  }
+
+  // Create a string of the primary key values that can be used for filtering.
+  function createPrimaryKey(item) {
+    return Object.values(_.pick(item, primaryIndices))
+      .map(
+        (val) =>
+          val instanceof Date
+            ? dateFns.format(val, "YYYY-MM-DD")
+            : _.toString(val),
+      )
+      .sort()
+      .join("_");
+  }
+
+  // Ensure the data is unique by the primary keys
+  items = _.uniqBy(items, createPrimaryKey);
+
+  // Create a query that queries the DB for data that matches `item` by the primary keys.
+  function createPrimaryQuery(item) {
+    let query = knex
+      .withSchema(schema)
+      .transacting(trx)
+      .from(tableName)
+      .select("*");
+
+    for (const key of primaryIndices) {
+      query = query.where(key, item[key]);
+    }
+
+    return query;
+  }
+
+  // Create a string representation of an item that is as normalized as possible.
+  // Used to compare a new item and a fetched item to determine if an update needs to be done.
+  function objectToNormalizedString(item) {
+    const values = [];
+    const keys = Object.keys(item).sort();
+
+    for (const key of keys) {
+      let val = item[key];
+
+      if (val instanceof Date) {
+        val = dateFns.format(val, "YYYY-MM-DD");
+      }
+
+      values.push(`${key}:${_.toString(val)}`);
+    }
+
+    return values.join("_");
+  }
+
+  const queries = items.map(createPrimaryQuery);
+  const existingRows = await Promise.all(queries).then((rows) =>
+    // Filter out empty results and flatten to a single-level array.
+    _.flatten(rows.filter((row) => row.length !== 0)),
+  );
+
+  // A collection of all the write operations we are gonna perform.
+  const writeOps = [];
+
+  // Determine which items can be simply inserted without causing conflicts
+  // by comparing incoming and existing items by primary key.
+  const itemsToInsert = _.differenceBy(items, existingRows, createPrimaryKey);
+
+  // ...and which items needs to be updated. As an additional measure, determine
+  // which items have actually changed to prevent redundant update operations.
+  const itemsToUpdate = _.differenceBy(
+    _.intersectionBy(items, existingRows, createPrimaryKey),
+    objectToNormalizedString,
+  );
+
+  // Cosntruct update queries for each item that has changed.
+  itemsToUpdate.forEach((item) => {
+    let updateQuery = knex(tableName)
+      .withSchema(schema)
+      .transacting(trx);
+
+    for (const pk of primaryIndices) {
+      updateQuery = updateQuery.where(pk, item[pk]);
+    }
+
+    updateQuery = updateQuery.update(item);
+    writeOps.push(updateQuery);
+  });
+
+  // Use batch insert for the items which are new to the DB.
+  if (itemsToInsert.length !== 0) {
+    writeOps.push(
+      knex
+        .batchInsert(
+          `${schema}.${tableName}`,
+          itemsToInsert,
+          itemsToInsert.length,
+        )
+        .transacting(trx),
     );
   }
 
-  const itemKeys = Object.keys(itemsArray[0]);
-  const conflictKeys = Array.isArray(conflictTarget)
-    ? conflictTarget
-    : [conflictTarget];
-
-  const exclusions = itemKeys
-    .filter((key) => !conflictKeys.includes(key))
-    .map((key) => db.raw("?? = EXCLUDED.??", [key, key]).toString())
-    .join(",\n");
-
-  const hasConflicts = _.difference(itemKeys, conflictKeys).length !== 0;
-
-  const valuesPreparedString = itemsArray
-    .map(
-      (item) =>
-        `(${Object.keys(item)
-          .map(() => "?")
-          .join(",")})`,
-    )
-    .join(",");
-
-  const preparedValues = _.flatten(
-    itemsArray.map((item) => Object.values(item)),
-  );
-
-  // if we have an array of conflicting targets to ignore process it
-  let conflict = "";
-
-  if (conflictKeys && conflictKeys.length !== 0 && hasConflicts) {
-    conflict = `(${conflictKeys.map(() => "??").join(",")})`;
-  }
-
-  const itemKeysPlaceholders = itemKeys.map(() => "??").join(",");
-
-  let rawString = `INSERT INTO ?? (${itemKeysPlaceholders})
-VALUES ${valuesPreparedString}
-ON CONFLICT ${conflict} DO UPDATE SET
-${exclusions}
-RETURNING *;`;
-
-  if (!hasConflicts || !conflict) {
-    rawString = `INSERT INTO ?? (${itemKeysPlaceholders})
-VALUES ${valuesPreparedString}
-ON CONFLICT DO NOTHING
-RETURNING *;`;
-  }
-
-  const bindings = [tableName, ...itemKeys, ...preparedValues, ...conflictKeys];
-  return db.raw(rawString, bindings);
+  // Return the promise so that the transaction can eventually close.
+  return Promise.all(writeOps);
 };
