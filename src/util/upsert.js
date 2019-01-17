@@ -30,41 +30,35 @@ module.exports = async function upsert({
 
   // Just insert if we have no clue about any indices
   if (primaryIndices.length === 0) {
+    console.log(`Importing ${items.length} rows into ${tableName}`);
+
     return knex
       .batchInsert(`${schema}.${tableName}`, items, items.length)
       .transacting(trx);
   }
 
+  function normalizeValue(val) {
+    if (val instanceof Date) {
+      return dateFns.format(val, "YYYY-MM-DD");
+    }
+
+    if (val === "1" || val === "0") {
+      return !!parseInt(val, 10);
+    }
+
+    return _.trim(_.toString(val));
+  }
+
   // Create a string of the primary key values that can be used for filtering.
   function createPrimaryKey(item) {
     return Object.values(_.pick(item, primaryIndices))
-      .map(
-        (val) =>
-          val instanceof Date
-            ? dateFns.format(val, "YYYY-MM-DD")
-            : _.toString(val),
-      )
+      .map(normalizeValue)
       .sort()
       .join("_");
   }
 
   // Ensure the data is unique by the primary keys
   items = _.uniqBy(items, createPrimaryKey);
-
-  // Create a query that queries the DB for data that matches `item` by the primary keys.
-  function createPrimaryQuery(item) {
-    let query = knex
-      .withSchema(schema)
-      .transacting(trx)
-      .from(tableName)
-      .select("*");
-
-    for (const key of primaryIndices) {
-      query = query.where(key, item[key]);
-    }
-
-    return query;
-  }
 
   // Create a string representation of an item that is as normalized as possible.
   // Used to compare a new item and a fetched item to determine if an update needs to be done.
@@ -74,25 +68,31 @@ module.exports = async function upsert({
 
     for (const key of keys) {
       let val = item[key];
-
-      if (val instanceof Date) {
-        val = dateFns.format(val, "YYYY-MM-DD");
-      }
-
-      values.push(`${key}:${_.toString(val)}`);
+      val = normalizeValue(val);
+      values.push(`${key}:${val}`);
     }
 
     return values.join("_");
   }
 
-  const queries = items.map(createPrimaryQuery);
-  const existingRows = await Promise.all(queries).then((rows) =>
-    // Filter out empty results and flatten to a single-level array.
-    _.flatten(rows.filter((row) => row.length !== 0)),
-  );
+  let query = knex
+    .withSchema(schema)
+    .transacting(trx)
+    .from(tableName)
+    .select("*");
+
+  for (const item of items) {
+    query = query.orWhere((builder) => {
+      for (const key of primaryIndices) {
+        builder.where(key, item[key]);
+      }
+    });
+  }
+
+  const existingRows = await query;
 
   // A collection of all the write operations we are gonna perform.
-  const writeOps = [];
+  const writeOps = [Promise.resolve()];
 
   // Determine which items can be simply inserted without causing conflicts
   // by comparing incoming and existing items by primary key.
@@ -100,12 +100,14 @@ module.exports = async function upsert({
 
   // ...and which items needs to be updated. As an additional measure, determine
   // which items have actually changed to prevent redundant update operations.
+  const existingItems = _.intersectionBy(items, existingRows, createPrimaryKey);
   const itemsToUpdate = _.differenceBy(
-    _.intersectionBy(items, existingRows, createPrimaryKey),
+    existingItems,
+    existingRows,
     objectToNormalizedString,
   );
 
-  // Cosntruct update queries for each item that has changed.
+  // Construct update queries for each item that has changed.
   itemsToUpdate.forEach((item) => {
     let updateQuery = knex(tableName)
       .withSchema(schema)
@@ -131,6 +133,12 @@ module.exports = async function upsert({
         .transacting(trx),
     );
   }
+
+  console.log(
+    `Importing ${itemsToInsert.length} rows and updating ${
+      itemsToUpdate.length
+    } rows in ${tableName}`,
+  );
 
   // Return the promise so that the transaction can eventually close.
   return Promise.all(writeOps);

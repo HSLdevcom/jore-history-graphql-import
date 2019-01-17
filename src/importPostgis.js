@@ -78,27 +78,28 @@ const importParallel = [
 
 knex
   .transaction(async (trx) => {
-    const createGeometrySQL = await fs.readFile(
-      path.join(__dirname, "createGeometry.sql"),
-      "utf8",
-    );
-
     async function importTable(tableName) {
       const indices = getIndexForTable(tableName);
       console.log(`Starting import: ${tableName}`);
 
-      return knex.transaction((tableTrx) =>
-        readTable(tableName, (lines) =>
-          upsert({
-            knex,
-            schema: "jore",
-            trx: tableTrx,
-            tableName,
-            itemData: lines,
-            indices,
-          }),
-        ),
-      );
+      return knex.transaction(async (tableTrx) => {
+        try {
+          await readTable(tableName, (lines) =>
+            upsert({
+              knex,
+              schema: "jore",
+              trx: tableTrx,
+              tableName,
+              itemData: lines,
+              indices,
+            }),
+          );
+        } catch (err) {
+          tableTrx.rollback(err);
+        }
+
+        return tableTrx.commit();
+      });
     }
 
     // eslint-disable-next-line no-unused-vars,no-use-before-define
@@ -109,7 +110,7 @@ knex
       selectedTables.length !== 0 ? selectedTables : "all",
     );
 
-    let ops;
+    let ops = [Promise.resolve()];
 
     if (selectedTables.length === 0) {
       // These tables are depended upon through foreign keys, so they need to
@@ -127,10 +128,19 @@ knex
       ops = _.intersection(importParallel, selectedTables).map(importTable);
     }
 
-    let promise = Promise.all(ops);
+    let promise = ops.length !== 0 ? Promise.all(ops) : Promise.resolve();
 
-    if (selectedTables.indexOf("geometry") || selectedTables.length === 0) {
+    if (
+      selectedTables.indexOf("geometry") !== -1 ||
+      selectedTables.length === 0
+    ) {
       await promise;
+
+      const createGeometrySQL = await fs.readFile(
+        path.join(__dirname, "createGeometry.sql"),
+        "utf8",
+      );
+
       promise = trx.raw(createGeometrySQL);
     }
 

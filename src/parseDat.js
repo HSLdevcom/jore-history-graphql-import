@@ -84,12 +84,6 @@ function parseDat(filename, fields, tableName, knex, st, onChunk) {
           const linesToInsert = [...lines];
           lines = [];
 
-          console.log(
-            `Inserting ${
-              linesToInsert.length
-            } lines from ${filename} to ${tableName}`,
-          );
-
           await onChunk(linesToInsert);
           lineReader.resume();
         }
