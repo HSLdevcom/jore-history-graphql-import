@@ -11,6 +11,7 @@ SELECT
       and geometry.direction = route.direction
       and route.date_begin <= geometry.date_end
       and route.date_end >= geometry.date_begin
+    limit 1
   )) as mode,
   ST_MakeLine(point order by index asc) as geom,
   0 as outliers,
