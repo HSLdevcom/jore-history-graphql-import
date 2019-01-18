@@ -76,8 +76,6 @@ module.exports = async function upsert({
     return values.join("_");
   }
 
-  const startTime = performance.now();
-
   let query = knex
     .withSchema(schema)
     .from(tableName)
@@ -92,9 +90,6 @@ module.exports = async function upsert({
   }
 
   const existingRows = await query;
-
-  const endTime = performance.now();
-  console.log(`Checked ${items.length} rows in ${endTime - startTime}ms`);
 
   // A collection of all the write operations we are gonna perform.
   const writeOps = [Promise.resolve()];
