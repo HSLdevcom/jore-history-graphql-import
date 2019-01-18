@@ -73,18 +73,18 @@ function parseDat(filename, fields, tableName, knex, st, onChunk) {
       input: fs.createReadStream(filename),
     });
 
+    const promises = [];
+
     lineReader.on("line", async (line) => {
       try {
         if (!isWhitespaceOnly.test(line)) {
           const parsedLine = parseLine(line, fields, knex, st);
-          lines = [...lines, parsedLine];
+          lines.push(parsedLine);
         }
         if (lines.length >= 1000) {
           lineReader.pause();
-          const linesToInsert = [...lines];
+          promises.push(onChunk(lines));
           lines = [];
-
-          await onChunk(linesToInsert);
           lineReader.resume();
         }
       } catch (error) {
@@ -92,13 +92,14 @@ function parseDat(filename, fields, tableName, knex, st, onChunk) {
       }
     });
 
-    lineReader.on("close", async () => {
-      try {
-        await onChunk(lines);
-        resolve();
-      } catch (error) {
-        reject(error);
+    lineReader.on("close", () => {
+      if (lines.length !== 0) {
+        promises.push(onChunk(lines));
       }
+
+      Promise.all(promises)
+        .then(resolve)
+        .catch(reject);
     });
   });
 }

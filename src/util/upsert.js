@@ -1,5 +1,6 @@
 const _ = require("lodash");
 const dateFns = require("date-fns");
+const { performance } = require("perf_hooks");
 
 /**
  * Perform an "Upsert" using the "INSERT ... ON CONFLICT ... " syntax in PostgreSQL 9.5
@@ -33,7 +34,7 @@ module.exports = async function upsert({
     console.log(`Importing ${items.length} rows into ${tableName}`);
 
     return knex
-      .batchInsert(`${schema}.${tableName}`, items, items.length)
+      .batchInsert(`${schema}.${tableName}`, items, 1000)
       .transacting(trx);
   }
 
@@ -75,9 +76,10 @@ module.exports = async function upsert({
     return values.join("_");
   }
 
+  const startTime = performance.now();
+
   let query = knex
     .withSchema(schema)
-    .transacting(trx)
     .from(tableName)
     .select("*");
 
@@ -90,6 +92,9 @@ module.exports = async function upsert({
   }
 
   const existingRows = await query;
+
+  const endTime = performance.now();
+  console.log(`Checked ${items.length} rows in ${endTime - startTime}ms`);
 
   // A collection of all the write operations we are gonna perform.
   const writeOps = [Promise.resolve()];
@@ -125,11 +130,7 @@ module.exports = async function upsert({
   if (itemsToInsert.length !== 0) {
     writeOps.push(
       knex
-        .batchInsert(
-          `${schema}.${tableName}`,
-          itemsToInsert,
-          itemsToInsert.length,
-        )
+        .batchInsert(`${schema}.${tableName}`, itemsToInsert, 1000)
         .transacting(trx),
     );
   }

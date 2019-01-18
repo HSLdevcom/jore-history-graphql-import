@@ -12,7 +12,7 @@ const knex = require("knex")({
   connection: process.env.PG_CONNECTION_STRING,
   pool: {
     min: 0,
-    max: 1000,
+    max: 50,
   },
 });
 
@@ -76,29 +76,24 @@ const importParallel = [
   "equipment",
 ];
 
-knex
-  .transaction(async (trx) => {
+Promise.resolve()
+  .then(async () => {
     async function importTable(tableName) {
       const indices = getIndexForTable(tableName);
-      console.log(`Starting import: ${tableName}`);
 
-      return knex.transaction(async (tableTrx) => {
-        try {
-          await readTable(tableName, (lines) =>
-            upsert({
-              knex,
-              schema: "jore",
-              trx: tableTrx,
-              tableName,
-              itemData: lines,
-              indices,
-            }),
-          );
-        } catch (err) {
-          tableTrx.rollback(err);
-        }
-
-        return tableTrx.commit();
+      return knex.transaction((tableTrx) => {
+        readTable(tableName, (lines) =>
+          upsert({
+            knex,
+            schema: "jore",
+            trx: tableTrx,
+            tableName,
+            itemData: lines,
+            indices,
+          }),
+        )
+          .then(tableTrx.commit)
+          .catch(tableTrx.rollback);
       });
     }
 
@@ -141,10 +136,9 @@ knex
         "utf8",
       );
 
-      promise = trx.raw(createGeometrySQL);
+      promise = knex.raw(createGeometrySQL);
     }
 
-    // Return the promise for the transaction
     return promise;
   })
   .then(() => console.log("Import succeeded."))
