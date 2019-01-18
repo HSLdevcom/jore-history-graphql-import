@@ -1,6 +1,5 @@
 const _ = require("lodash");
 const dateFns = require("date-fns");
-const { performance } = require("perf_hooks");
 
 /**
  * Perform an "Upsert" using the "INSERT ... ON CONFLICT ... " syntax in PostgreSQL 9.5
