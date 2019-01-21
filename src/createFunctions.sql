@@ -10,17 +10,17 @@ end
 $$ language plpgsql
    immutable;
 
-create function jore.origin_departure(departure jore.departure) returns jore.departure as
+create function jore.departure_origin_departure(departure jore.departure) returns jore.departure as
 $$
 select *
-from jore.departure other_departure
-where other_departure.route_id = departure.route_id
-  and other_departure.direction = departure.direction
-  and other_departure.date_begin = departure.date_end
-  and other_departure.date_end = departure.date_begin
-  and other_departure.departure_id = departure.departure_id
-  and other_departure.day_type = departure.day_type
-order by other_departure.hours ASC, other_departure.minutes ASC, other_departure.departure_id ASC
+from jore.departure inner_departure
+where departure.route_id = inner_departure.route_id
+  and departure.direction = inner_departure.direction
+  and departure.date_begin = inner_departure.date_begin
+  and departure.date_end = inner_departure.date_end
+  and departure.departure_id = inner_departure.departure_id
+  and departure.day_type = inner_departure.day_type
+order by inner_departure.hours ASC, inner_departure.minutes ASC
 limit 1;
 $$ language sql
    stable;
