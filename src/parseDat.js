@@ -73,7 +73,7 @@ function parseDat(filename, fields, tableName, knex, st, onChunk) {
       input: fs.createReadStream(filename),
     });
 
-    const promises = [];
+    let promises = [];
 
     lineReader.on("line", async (line) => {
       try {
@@ -85,6 +85,17 @@ function parseDat(filename, fields, tableName, knex, st, onChunk) {
           lineReader.pause();
           promises.push(onChunk(lines));
           lines = [];
+
+          const memoryStats = process.memoryUsage();
+          const used = Math.abs(memoryStats.heapUsed / 1024 / 1024);
+          const available = Math.abs(memoryStats.rss / 1024 / 1024);
+
+          // Wait and process chunks if we're using two thirds of the memory already
+          if ((available / 3) * 2 <= used) {
+            await Promise.all(promises);
+            promises = [];
+          }
+
           lineReader.resume();
         }
       } catch (error) {

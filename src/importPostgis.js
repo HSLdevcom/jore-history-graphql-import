@@ -16,6 +16,8 @@ const knex = require("knex")({
   },
 });
 
+const SCHEMA = "jore";
+
 // install postgis functions in knex.postgis;
 const st = require("knex-postgis")(knex);
 
@@ -76,28 +78,21 @@ const importParallel = [
   "equipment",
 ];
 
-Promise.resolve()
-  .then(async () => {
+knex
+  .transaction(async (trx) => {
     async function importTable(tableName) {
       const indices = getIndexForTable(tableName);
 
-      return knex.transaction(async (tableTrx) => {
-        const isEmpty = (await tableTrx(tableName).count()) === 0;
-
-        readTable(tableName, (lines) =>
-          upsert({
-            knex,
-            schema: "jore",
-            trx: tableTrx,
-            tableName,
-            itemData: lines,
-            indices,
-            isEmpty,
-          }),
-        )
-          .then(tableTrx.commit)
-          .catch(tableTrx.rollback);
-      });
+      return readTable(tableName, (lines) =>
+        upsert({
+          knex,
+          schema: SCHEMA,
+          trx,
+          tableName,
+          itemData: lines,
+          indices,
+        }),
+      );
     }
 
     // eslint-disable-next-line no-unused-vars,no-use-before-define
@@ -108,7 +103,7 @@ Promise.resolve()
       selectedTables.length !== 0 ? selectedTables : "all",
     );
 
-    let ops = [Promise.resolve()];
+    let ops = [];
 
     if (selectedTables.length === 0) {
       // These tables are depended upon through foreign keys, so they need to

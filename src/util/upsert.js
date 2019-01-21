@@ -20,7 +20,6 @@ module.exports = async function upsert({
   tableName,
   itemData,
   indices: primaryIndices = [],
-  isEmpty,
 }) {
   let items = [];
   if (Array.isArray(itemData)) {
@@ -35,7 +34,7 @@ module.exports = async function upsert({
       .transacting(trx);
   }
 
-  // Just insert if we have no clue about any indices
+  // Just insert if we don't have any indices
   if (primaryIndices.length === 0) {
     console.log(`Importing ${items.length} rows into ${tableName}`);
     return batchInsert(items);
@@ -64,85 +63,51 @@ module.exports = async function upsert({
   // Ensure the data is unique by the primary keys
   items = _.uniqBy(items, createPrimaryKey);
 
-  if (isEmpty) {
-    console.log(`Importing ${items.length} rows into ${tableName}`);
-    return batchInsert(items);
+  const itemKeys = Object.keys(items[0]);
+
+  const exclusions = itemKeys
+    .filter((key) => !primaryIndices.includes(key))
+    .map((key) => trx.raw("?? = EXCLUDED.??", [key, key]).toString())
+    .join(",\n");
+
+  const hasConflicts = _.difference(itemKeys, primaryIndices).length !== 0;
+
+  const valuesPreparedString = items
+    .map(
+      (item) =>
+        `(${Object.keys(item)
+          .map(() => "?")
+          .join(",")})`,
+    )
+    .join(",");
+
+  const preparedValues = _.flatten(items.map((item) => Object.values(item)));
+
+  // if we have an array of conflicting targets to ignore process it
+  let conflict = "";
+
+  if (primaryIndices && primaryIndices.length !== 0 && hasConflicts) {
+    conflict = `(${primaryIndices.map(() => "??").join(",")})`;
   }
 
-  // Create a string representation of an item that is as normalized as possible.
-  // Used to compare a new item and a fetched item to determine if an update needs to be done.
-  function objectToNormalizedString(item) {
-    const values = [];
-    const keys = Object.keys(item).sort();
+  const itemKeysPlaceholders = itemKeys.map(() => "??").join(",");
 
-    for (const key of keys) {
-      let val = item[key];
-      val = normalizeValue(val);
-      values.push(`${key}:${val}`);
-    }
+  const rawString = `
+INSERT INTO ?? (${itemKeysPlaceholders})
+VALUES ${valuesPreparedString}
+ON CONFLICT ${conflict} DO UPDATE SET
+${exclusions}
+RETURNING *;
+`;
 
-    return values.join("_");
-  }
+  const bindings = [
+    `${schema}.${tableName}`,
+    ...itemKeys,
+    ...preparedValues,
+    ...primaryIndices,
+  ];
 
-  let query = knex
-    .withSchema(schema)
-    .from(tableName)
-    .select("*");
+  console.log(`Importing or updating ${items.length} rows into ${tableName}`);
 
-  for (const item of items) {
-    query = query.orWhere((builder) => {
-      for (const key of primaryIndices) {
-        builder.where(key, item[key]);
-      }
-    });
-  }
-
-  const existingRows = await query;
-
-  // A collection of all the write operations we are gonna perform.
-  const writeOps = [Promise.resolve()];
-
-  // Determine which items can be simply inserted without causing conflicts
-  // by comparing incoming and existing items by primary key.
-  const itemsToInsert = _.differenceBy(items, existingRows, createPrimaryKey);
-
-  // ...and which items needs to be updated. As an additional measure, determine
-  // which items have actually changed to prevent redundant update operations.
-  const itemsToUpdate = _.differenceBy(
-    _.intersectionBy(items, existingRows, createPrimaryKey),
-    existingRows,
-    objectToNormalizedString,
-  );
-
-  // Construct update queries for each item that has changed.
-  itemsToUpdate.forEach((item) => {
-    let updateQuery = knex(tableName)
-      .withSchema(schema)
-      .transacting(trx);
-
-    for (const pk of primaryIndices) {
-      updateQuery = updateQuery.where(pk, item[pk]);
-    }
-
-    updateQuery = updateQuery.update(item);
-    writeOps.push(updateQuery);
-  });
-
-  // Use batch insert for the items which are new to the DB.
-  if (itemsToInsert.length !== 0) {
-    writeOps.push(
-      knex
-        .batchInsert(`${schema}.${tableName}`, itemsToInsert, 1000)
-        .transacting(trx),
-    );
-  }
-
-  console.log(
-    `Importing ${itemsToInsert.length} rows and updating ${
-      itemsToUpdate.length
-    } rows in ${tableName}`,
-  );
-
-  // Return the promise so that the transaction can eventually close.
-  return Promise.all(writeOps);
+  return trx.raw(rawString, bindings);
 };
