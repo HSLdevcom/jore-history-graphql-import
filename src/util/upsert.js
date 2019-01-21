@@ -20,6 +20,7 @@ module.exports = async function upsert({
   tableName,
   itemData,
   indices: primaryIndices = [],
+  isEmpty,
 }) {
   let items = [];
   if (Array.isArray(itemData)) {
@@ -28,13 +29,16 @@ module.exports = async function upsert({
     items[0] = itemData;
   }
 
+  function batchInsert(rows) {
+    return knex
+      .batchInsert(`${schema}.${tableName}`, rows, 1000)
+      .transacting(trx);
+  }
+
   // Just insert if we have no clue about any indices
   if (primaryIndices.length === 0) {
     console.log(`Importing ${items.length} rows into ${tableName}`);
-
-    return knex
-      .batchInsert(`${schema}.${tableName}`, items, 1000)
-      .transacting(trx);
+    return batchInsert(items);
   }
 
   function normalizeValue(val) {
@@ -59,6 +63,11 @@ module.exports = async function upsert({
 
   // Ensure the data is unique by the primary keys
   items = _.uniqBy(items, createPrimaryKey);
+
+  if (isEmpty) {
+    console.log(`Importing ${items.length} rows into ${tableName}`);
+    return batchInsert(items);
+  }
 
   // Create a string representation of an item that is as normalized as possible.
   // Used to compare a new item and a fetched item to determine if an update needs to be done.
@@ -99,9 +108,8 @@ module.exports = async function upsert({
 
   // ...and which items needs to be updated. As an additional measure, determine
   // which items have actually changed to prevent redundant update operations.
-  const existingItems = _.intersectionBy(items, existingRows, createPrimaryKey);
   const itemsToUpdate = _.differenceBy(
-    existingItems,
+    _.intersectionBy(items, existingRows, createPrimaryKey),
     existingRows,
     objectToNormalizedString,
   );

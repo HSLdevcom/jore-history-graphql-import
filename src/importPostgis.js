@@ -12,7 +12,7 @@ const knex = require("knex")({
   connection: process.env.PG_CONNECTION_STRING,
   pool: {
     min: 0,
-    max: 50,
+    max: 20,
   },
 });
 
@@ -81,7 +81,9 @@ Promise.resolve()
     async function importTable(tableName) {
       const indices = getIndexForTable(tableName);
 
-      return knex.transaction((tableTrx) => {
+      return knex.transaction(async (tableTrx) => {
+        const isEmpty = (await tableTrx(tableName).count()) === 0;
+
         readTable(tableName, (lines) =>
           upsert({
             knex,
@@ -90,6 +92,7 @@ Promise.resolve()
             tableName,
             itemData: lines,
             indices,
+            isEmpty,
           }),
         )
           .then(tableTrx.commit)
