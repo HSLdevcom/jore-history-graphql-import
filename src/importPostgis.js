@@ -5,6 +5,7 @@ const parseDat = require("./parseDat");
 const schema = require("./schema");
 const _ = require("lodash");
 const pEachSeries = require("p-each-series");
+const prefetch = require("./util/prefetch");
 const insertCompare = require("./util/insertCompare");
 
 const knex = require("knex")({
@@ -94,17 +95,17 @@ const importParallel = [
 knex
   .transaction(async (trx) => {
     async function importTable(tableData) {
-      console.log(tableData);
-
       let tableName;
       let updateMethod;
       let keys;
+      let prefetched = [];
 
       if (Array.isArray(tableData)) {
         // eslint-disable-next-line prefer-destructuring
         tableName = tableData[0];
         updateMethod = tableData[1] || upsert;
         keys = tableData[2] || getIndexForTable(tableName);
+        prefetched = await prefetch({ knex, schema: SCHEMA, tableName });
       } else {
         tableName = tableData;
         updateMethod = upsert;
@@ -119,6 +120,7 @@ knex
           tableName,
           itemData: lines,
           indices: keys,
+          prefetched,
         };
 
         return updateMethod(updateArg);

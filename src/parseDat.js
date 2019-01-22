@@ -90,8 +90,12 @@ function parseDat(filename, fields, tableName, knex, st, onChunk) {
           const used = Math.abs(memoryStats.heapUsed / 1024 / 1024);
           const available = Math.abs(memoryStats.rss / 1024 / 1024);
 
-          // Wait and process chunks if we're using two thirds of the memory already
+          // Wait and process chunks if we're using three fourths of the memory already
           if ((available / 4) * 3 <= used) {
+            console.log(
+              `Processing ${promises.length} chunks of ${tableName}.`,
+            );
+
             await Promise.all(promises);
             promises = [];
           }

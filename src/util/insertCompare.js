@@ -8,6 +8,7 @@ module.exports = async function insertCompare({
   tableName,
   itemData,
   indices: queryKeys,
+  prefetched = [],
 }) {
   let items = [];
   if (Array.isArray(itemData)) {
@@ -51,31 +52,7 @@ module.exports = async function insertCompare({
       .join("_");
   }
 
-  const queryValues = items.reduce((values, item) => {
-    const itemValues = _.pick(item, queryKeys);
-    const key = Object.values(itemValues).join("_");
-
-    if (!values.has(key)) {
-      values.set(key, itemValues);
-    }
-
-    return values;
-  }, new Map());
-
-  let query = knex
-    .withSchema(schema)
-    .from(tableName)
-    .select("*");
-
-  for (const item of queryValues.values()) {
-    query = query.orWhere((builder) => {
-      _.each(item, (value, key) => {
-        builder.where(key, value);
-      });
-    });
-  }
-
-  const existingRows = await query;
+  const existingRows = prefetched;
 
   // A collection of all the write operations we are gonna perform.
   const writeOps = [Promise.resolve()];
