@@ -5,6 +5,7 @@ const parseDat = require("./parseDat");
 const schema = require("./schema");
 const _ = require("lodash");
 const pEachSeries = require("p-each-series");
+const insertCompare = require("./util/insertCompare");
 
 const knex = require("knex")({
   dialect: "postgres",
@@ -73,26 +74,55 @@ const importParallel = [
   "line",
   "route",
   "route_segment",
-  "point_geometry",
+  [
+    "point_geometry",
+    insertCompare,
+    [
+      "route_id",
+      "direction",
+      "date_begin",
+      "date_end",
+      "stop_id",
+      "node_type",
+      "index",
+    ],
+  ],
   "departure",
   "equipment",
 ];
 
 knex
   .transaction(async (trx) => {
-    async function importTable(tableName) {
-      const indices = getIndexForTable(tableName);
+    async function importTable(tableData) {
+      console.log(tableData);
 
-      return readTable(tableName, (lines) =>
-        upsert({
+      let tableName;
+      let updateMethod;
+      let keys;
+
+      if (Array.isArray(tableData)) {
+        // eslint-disable-next-line prefer-destructuring
+        tableName = tableData[0];
+        updateMethod = tableData[1] || upsert;
+        keys = tableData[2] || getIndexForTable(tableName);
+      } else {
+        tableName = tableData;
+        updateMethod = upsert;
+        keys = getIndexForTable(tableName);
+      }
+
+      return readTable(tableName, (lines) => {
+        const updateArg = {
           knex,
           schema: SCHEMA,
           trx,
           tableName,
           itemData: lines,
-          indices,
-        }),
-      );
+          indices: keys,
+        };
+
+        return updateMethod(updateArg);
+      });
     }
 
     // eslint-disable-next-line no-unused-vars,no-use-before-define
@@ -100,7 +130,7 @@ knex
 
     console.log(
       "Importing:",
-      selectedTables.length !== 0 ? selectedTables : "all",
+      selectedTables.length !== 0 ? selectedTables.join(", ") : "all",
     );
 
     let ops = [];
@@ -113,12 +143,22 @@ knex
     } else {
       // If a table from the importSerial table is selected, import them all as they
       // may have some dependencies between them.
-      if (_.intersection(importSerial, selectedTables).length !== 0) {
+      if (
+        _.intersectionBy(
+          importSerial,
+          selectedTables,
+          (value) => (Array.isArray(value) ? value[0] : value),
+        ).length !== 0
+      ) {
         await pEachSeries(importSerial, (tableName) => importTable(tableName));
       }
 
       // Create import promises from the selected tables.
-      ops = _.intersection(importParallel, selectedTables).map(importTable);
+      ops = _.intersectionBy(
+        importParallel,
+        selectedTables,
+        (value) => (Array.isArray(value) ? value[0] : value),
+      ).map(importTable);
     }
 
     let promise = ops.length !== 0 ? Promise.all(ops) : Promise.resolve();
