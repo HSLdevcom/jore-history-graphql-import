@@ -1502,6 +1502,11 @@ p-locate@^2.0.0:
   dependencies:
     p-limit "^1.1.0"
 
+p-queue@^3.0.0:
+  version "3.0.0"
+  resolved "https://registry.yarnpkg.com/p-queue/-/p-queue-3.0.0.tgz#0ef247082f0dd5a21b66e2cfe8fb7b06db13fb52"
+  integrity sha512-2tv/MRmPXfmfnjLLJAHl+DdU8p2DhZafAnlpm/C/T5BpF5L9wKz5tMin4A4N2zVpJL2YMhPlRmtO7s5EtNrjfA==
+
 p-reduce@^1.0.0:
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/p-reduce/-/p-reduce-1.0.0.tgz#18c2b0dd936a4690a529f8231f58a0fdb6a47dfa"

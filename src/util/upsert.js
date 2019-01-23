@@ -17,6 +17,8 @@ module.exports = async function upsert({
     items[0] = itemData;
   }
 
+  // Prepend the schema name to the table. This is more convenient in raw queries
+  // and batch queries where Knex doesn't seem to use the withSchema function.
   const tableId = `${schema}.${tableName}`;
 
   function batchInsert(rows) {
@@ -62,6 +64,8 @@ module.exports = async function upsert({
     .map((key) => knex.raw("?? = EXCLUDED.??", [key, key]).toString())
     .join(",\n");
 
+  // Get the keys that the ON CONFLICT should check for
+  // If a constraint is set, choose that.
   const onConflictKeys = !constraint
     ? `(${primaryIndices.map(() => "??").join(",")})`
     : "ON CONSTRAINT ??";
