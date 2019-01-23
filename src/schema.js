@@ -699,19 +699,13 @@ module.exports = {
         notNullable: true,
       },
       {
-        name: "mode",
-        type: "specificType",
-        typeOptions: "jore.mode",
-      },
-      {
         name: "geom",
         type: "specificType",
         typeOptions: "geometry(LineString,4326)",
         notNullable: true,
       },
-      { name: "outliers", type: "integer" },
-      { name: "min_likelihood", type: "float" },
     ],
+    primary: ["route_id", "direction", "date_begin", "date_end"],
   },
   equipment: {
     filename: "kalusto.dat",

@@ -97,6 +97,7 @@ function parseDat(
         }
 
         if (lines.length >= 1000) {
+          lineReader.pause();
           promises.push(onChunk(lines));
           lines = [];
 
@@ -110,15 +111,15 @@ function parseDat(
             (available / 4) * 3 <= used ||
             promises.length >= chunkWaitLimit
           ) {
-            lineReader.pause();
             console.log(
               `Processing ${promises.length} chunks of ${tableName}.`,
             );
 
             await Promise.all(promises);
             promises = [];
-            lineReader.resume();
           }
+
+          lineReader.resume();
         }
       } catch (error) {
         reject(error);
@@ -137,17 +138,32 @@ function parseDat(
   });
 }
 
-function parseDatInGroups(filename, fields, groupBy, knex, st, onGroup) {
+function parseDatInGroups(
+  filename,
+  fields,
+  groupBy,
+  knex,
+  st,
+  tableName,
+  onChunk,
+) {
   return new Promise((resolve, reject) => {
+    // All groups in a chunk. Will be reset when a chunk is sent to the db.
+    let groups = [];
+
+    // The current group of lines. Will be pushed onto `groups` when completed.
     let currentGroup = [];
+    // The current key of the group. When this changes, the group is deemed complete.
     let currentGroupKey = "";
 
     const lineReader = readline.createInterface({
       input: fs.createReadStream(filename),
     });
 
-    const promises = [];
+    // All promises currently going.
+    let promises = [];
 
+    // Creates the key that identifies a group.
     function getGroupKey(line) {
       return _.sortBy(Object.entries(_.pick(line, groupBy)), ([key]) => key)
         .map(([_, value]) => value)
@@ -156,6 +172,7 @@ function parseDatInGroups(filename, fields, groupBy, knex, st, onGroup) {
 
     lineReader.on("line", async (line) => {
       try {
+        // The group key of the current line
         let groupKey = "";
         let parsedLine = null;
 
@@ -163,18 +180,51 @@ function parseDatInGroups(filename, fields, groupBy, knex, st, onGroup) {
           parsedLine = parseLine(line, fields, knex, st);
           groupKey = getGroupKey(parsedLine);
 
+          // If the current group key is empty, that means that this is the first line.
           if (currentGroupKey === "") {
             currentGroupKey = groupKey;
           }
 
+          // Add the line to the current group if the group key matches.
           if (groupKey !== "" && groupKey === currentGroupKey) {
             currentGroup.push(parsedLine);
           } else if (groupKey !== "" && groupKey !== currentGroupKey) {
-            promises.push(onGroup(currentGroup));
+            // If the key does not match, that means that this line is the start of the next
+            // group. Add the current group to the groups collection.
+            groups.push(currentGroup);
 
-            if (parsedLine) {
-              currentGroupKey = groupKey;
-              currentGroup = [parsedLine];
+            // Start a new group by setting the new group key and resetting the group array.
+            // This line is already part of the new group so it should also be included.
+            currentGroupKey = groupKey;
+            currentGroup = [parsedLine];
+
+            // If the chuck size is large enough, send it to `onChunk`.
+            if (groups.length >= 100) {
+              lineReader.pause();
+
+              // Get a promise for the processing of the chunk and add it to the promises array.
+              promises.push(onChunk(groups));
+              // Reset the groups collection for the next chunk.
+              groups = [];
+
+              // Check the memory situation...
+              const memoryStats = v8.getHeapStatistics();
+              const used = Math.abs(memoryStats.used_heap_size / 1024 / 1024);
+              const available = Math.abs(
+                memoryStats.heap_size_limit / 1024 / 1024,
+              );
+
+              // Wait and process chunks if we're using three fourths of the memory already
+              if ((available / 4) * 3 <= used) {
+                console.log(
+                  `Processing ${promises.length} chunks of ${tableName}.`,
+                );
+
+                await Promise.all(promises);
+                promises = [];
+              }
+
+              lineReader.resume();
             }
           }
         }
@@ -185,7 +235,11 @@ function parseDatInGroups(filename, fields, groupBy, knex, st, onGroup) {
 
     lineReader.on("close", () => {
       if (currentGroup.length !== 0) {
-        promises.push(onGroup(currentGroup));
+        groups.push(currentGroup);
+      }
+
+      if (groups.length !== 0) {
+        promises.push(onChunk(groups));
       }
 
       Promise.all(promises)

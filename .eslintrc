@@ -11,7 +11,8 @@
     "spaced-comment": "off",
     "import/order": "off",
     "sort-imports": "off",
-    "no-await-in-loop": "off"
+    "no-await-in-loop": "off",
+    "no-plusplus": "off"
   },
   "env": {
     "node": true,

@@ -1,11 +1,11 @@
 const fs = require("fs-extra");
 const path = require("path");
 const upsert = require("./util/upsert");
-const importGeometryGroup = require("./util/importGeometryGroup");
 const { parseDat, parseDatInGroups } = require("./parseDat");
 const schema = require("./schema");
 const _ = require("lodash");
 const pEachSeries = require("p-each-series");
+const getPrimaryConstraint = require("./util/getPrimaryConstraint");
 
 const knex = require("knex")({
   dialect: "postgres",
@@ -63,29 +63,50 @@ const importParallel = [
 knex
   .transaction(async (trx) => {
     async function importGeometry() {
+      const tableName = "geometry";
       const filepath = sourcePath(schema.point_geometry.filename);
       const fileExists = await fs.exists(filepath);
-
-      const groupKeys = ["route_id", "direction", "date_begin", "date_end"];
+      const keys = getIndexForTable(tableName);
 
       if (fileExists) {
-        const onGroup = (group) =>
-          importGeometryGroup({
+        const constraint = await getPrimaryConstraint(knex, tableName, SCHEMA);
+
+        const onChunk = (groups) => {
+          const geometryItems = groups.map((group) => {
+            const geometryData = _.pick(group[0], keys);
+
+            const points = _.orderBy(group, "index", "ASC").map(
+              ({ point }) => point,
+            );
+
+            return {
+              ...geometryData,
+              geom: knex.raw(
+                `ST_MakeLine(ARRAY[${points.map(() => "?").join(",")}])`,
+                points,
+              ),
+            };
+          });
+
+          return upsert({
             knex,
             schema: SCHEMA,
             trx,
-            tableName: "geometry",
-            group,
-            groupKeys,
+            tableName,
+            itemData: geometryItems,
+            indices: keys,
+            constraint,
           });
+        };
 
         return parseDatInGroups(
           filepath,
           schema.point_geometry.fields,
-          groupKeys,
+          keys,
           knex,
           st,
-          onGroup,
+          tableName,
+          onChunk,
         );
       }
 
@@ -99,6 +120,8 @@ knex
       const fileExists = await fs.exists(filepath);
 
       if (fileExists) {
+        const constraint = await getPrimaryConstraint(knex, tableName, SCHEMA);
+
         const onChunk = (lines) =>
           upsert({
             knex,
@@ -107,6 +130,7 @@ knex
             tableName,
             itemData: lines,
             indices: keys,
+            constraint,
           });
 
         return parseDat(
@@ -116,7 +140,7 @@ knex
           knex,
           st,
           onChunk,
-          isInit ? 1000 : 100,
+          200,
         );
       }
 

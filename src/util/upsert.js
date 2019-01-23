@@ -1,5 +1,4 @@
 const _ = require("lodash");
-const dateFns = require("date-fns");
 const createPrimaryKey = require("./createPrimaryKey");
 
 module.exports = async function upsert({
@@ -9,6 +8,7 @@ module.exports = async function upsert({
   tableName,
   itemData,
   indices: primaryIndices = [],
+  constraint = "",
 }) {
   let items = [];
   if (Array.isArray(itemData)) {
@@ -17,10 +17,10 @@ module.exports = async function upsert({
     items[0] = itemData;
   }
 
+  const tableId = `${schema}.${tableName}`;
+
   function batchInsert(rows) {
-    return knex
-      .batchInsert(`${schema}.${tableName}`, rows, 1000)
-      .transacting(trx);
+    return knex.batchInsert(tableId, rows, 1000).transacting(trx);
   }
 
   // Just insert if we don't have any indices
@@ -29,74 +29,57 @@ module.exports = async function upsert({
     return batchInsert(items);
   }
 
-  function normalizeValue(val) {
-    if (val instanceof Date) {
-      return dateFns.format(val, "YYYY-MM-DD");
-    }
-
-    if (val === "1" || val === "0") {
-      return !!parseInt(val, 10);
-    }
-
-    return _.trim(_.toString(val));
-  }
-
   // Ensure the data is unique by the primary keys
   items = _.uniqBy(items, (item) => createPrimaryKey(item, primaryIndices));
+  const itemCount = items.length;
 
-  // Create a string representation of an item that is as normalized as possible.
-  // Used to compare a new item and a fetched item to determine if an update needs to be done.
-  function objectToNormalizedString(item) {
-    const values = [];
-    const keys = Object.keys(item).sort();
+  // Get the set of keys for all items from the first item.
+  // All items should have the same keys.
+  const itemKeys = Object.keys(items[0]);
 
-    for (const key of keys) {
-      let val = item[key];
-      val = normalizeValue(val);
-      values.push(`${key}:${val}`);
-    }
+  // Create a string of placeholder values (?,?,?) for each item we want to insert
+  const valuesPlaceholders = [];
+  const placeholderRow = itemKeys.map(() => "?").join(",");
 
-    return values.join("_");
+  for (let i = 0; i < itemCount; i++) {
+    valuesPlaceholders.push(`(${placeholderRow})`);
   }
 
-  // A collection of all the write operations we are gonna perform.
-  const writeOps = [Promise.resolve()];
-  const itemsToInsert = [];
+  // Collect all values to insert from all objects in a one-dimensional array.
+  // Ensure that each key has a value.
+  const insertValues = items.reduce((values, item) => {
+    const itemValues = itemKeys.reduce((valuesArray, key) => {
+      valuesArray.push(_.get(item, key, ""));
+      return valuesArray;
+    }, []);
 
-  const createWhereQuery = (item, keys = []) => {
-    const queryValues = keys.length !== 0 ? _.pick(item, keys) : item;
-    const query = trx(tableName)
-      .withSchema(schema)
-      .where(queryValues);
+    return [...values, ...itemValues];
+  }, []);
 
-    return query;
-  };
+  // Create the string of update values for the conflict case
+  const updateValues = itemKeys
+    .filter((key) => !primaryIndices.includes(key)) // Don't update primary indices
+    .map((key) => knex.raw("?? = EXCLUDED.??", [key, key]).toString())
+    .join(",\n");
 
-  for (const item of items) {
-    const existingItem = await createWhereQuery(item, primaryIndices).first(
-      "*",
-    );
+  const onConflictKeys = !constraint
+    ? `(${primaryIndices.map(() => "??").join(",")})`
+    : "ON CONSTRAINT ??";
 
-    if (
-      existingItem &&
-      objectToNormalizedString(item) !== objectToNormalizedString(existingItem)
-    ) {
-      const updateQuery = createWhereQuery(item, primaryIndices).update(item);
-      writeOps.push(updateQuery);
-    } else {
-      itemsToInsert.push(item);
-    }
-  }
+  const upsertQuery = `
+INSERT INTO ?? (${itemKeys.map(() => "??").join(",")})
+VALUES ${valuesPlaceholders.join(",")}
+ON CONFLICT ${onConflictKeys} DO UPDATE SET
+${updateValues};
+`;
+  const upsertBindings = [
+    tableId,
+    ...itemKeys,
+    ...insertValues,
+    ...(!constraint ? primaryIndices : [constraint]),
+  ];
 
-  // Use batch insert for the items which are new to the DB.
-  if (itemsToInsert.length !== 0) {
-    writeOps.push(batchInsert(itemsToInsert));
-  }
+  console.log(`Inserting or updating ${items.length} rows in ${tableName}`);
 
-  console.log(
-    `Inserting ${itemsToInsert.length} rows and updating ${items.length -
-      itemsToInsert.length} rows in ${tableName}`,
-  );
-
-  return Promise.all(writeOps);
+  return trx.raw(upsertQuery, upsertBindings);
 };
