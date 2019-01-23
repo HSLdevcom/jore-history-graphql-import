@@ -312,25 +312,6 @@ where route.route_id like (line.line_id || '%')
 $$ language sql
    stable;
 
-create function jore.stop_calculated_heading(stop jore.stop) returns numeric as
-$$
-  -- https://en.wikipedia.org/wiki/Mean_of_circular_quantities
-select mod(cast(degrees(atan2(avg(sin(heading)), avg(cos(heading)))) + 360 as numeric), 360)
-from (
-       select st_azimuth(outer_geometry.point, inner_geometry.point) as heading
-       from jore.point_geometry as outer_geometry
-              join jore.point_geometry as inner_geometry
-                   on inner_geometry.index = (outer_geometry.index + 1)
-                     and inner_geometry.route_id = outer_geometry.route_id
-                     and inner_geometry.direction = outer_geometry.direction
-                     and inner_geometry.date_begin = outer_geometry.date_begin
-                     and inner_geometry.date_end = outer_geometry.date_end
-       where outer_geometry.stop_id = stop.stop_id
-         and outer_geometry.node_type = 'P'
-     ) as headings;
-$$ language sql
-   stable;
-
 create function jore.route_segment_notes(route_segment jore.route_segment, date date) returns setof jore.note as
 $$
 select note
@@ -495,42 +476,6 @@ from (
                     and jore.departure_is_regular_day_departure(departure)
                     and date between departure.date_begin and departure.date_end
                 )
-            ) as f
-     ) as fc
-$$ language sql
-   stable;
-
-create function jore.point_network_as_geojson() returns json as
-$$
-select row_to_json(fc)
-from (
-       select 'FeatureCollection' as type, array_to_json(array_agg(f)) as features
-       from (
-              select 'Feature'                              as type,
-                     ST_AsGeoJSON(geometry.geometry)::jsonb as geometry,
-                     json_build_object(
-                         'route_id', route_id,
-                         'direction', direction,
-                         'date_begin', date_begin,
-                         'date_end', date_end,
-                         'mode', jore.route_mode((
-                       select route
-                       from jore.route route
-                       where geometry.route_id = route.route_id
-                         and geometry.direction = route.direction
-                         and route.date_begin <= geometry.date_end
-                         and route.date_end >= geometry.date_begin
-                     ))
-                       )                                    as properties
-              from (
-                     select ST_MakeLine(point order by index asc) as geometry,
-                            route_id,
-                            direction,
-                            date_begin,
-                            date_end
-                     from jore.point_geometry
-                     group by route_id, direction, date_begin, date_end
-                   ) as geometry
             ) as f
      ) as fc
 $$ language sql

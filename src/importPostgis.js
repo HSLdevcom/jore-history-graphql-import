@@ -1,12 +1,11 @@
 const fs = require("fs-extra");
 const path = require("path");
 const upsert = require("./util/upsert");
-const parseDat = require("./parseDat");
+const importGeometryGroup = require("./util/importGeometryGroup");
+const { parseDat, parseDatInGroups } = require("./parseDat");
 const schema = require("./schema");
 const _ = require("lodash");
 const pEachSeries = require("p-each-series");
-const prefetch = require("./util/prefetch");
-const insertCompare = require("./util/insertCompare");
 
 const knex = require("knex")({
   dialect: "postgres",
@@ -14,7 +13,7 @@ const knex = require("knex")({
   connection: process.env.PG_CONNECTION_STRING,
   pool: {
     min: 0,
-    max: 20,
+    max: 50,
   },
 });
 
@@ -25,24 +24,6 @@ const st = require("knex-postgis")(knex);
 
 const sourcePath = (filename) =>
   path.join(__dirname, "..", "processed", filename);
-
-async function readTable(tableName, onChunk) {
-  const filepath = sourcePath(schema[tableName].filename);
-  const fileExists = await fs.exists(filepath);
-
-  if (fileExists) {
-    return parseDat(
-      filepath,
-      schema[tableName].fields,
-      tableName,
-      knex,
-      st,
-      onChunk,
-    );
-  }
-
-  return null;
-}
 
 function getIndexForTable(tableName) {
   const tableSchema = _.get(schema, tableName, false);
@@ -75,60 +56,74 @@ const importParallel = [
   "line",
   "route",
   "route_segment",
-  [
-    "point_geometry",
-    insertCompare,
-    [
-      "route_id",
-      "direction",
-      "date_begin",
-      "date_end",
-      "stop_id",
-      "node_type",
-      "index",
-    ],
-  ],
   "departure",
   "equipment",
 ];
 
 knex
   .transaction(async (trx) => {
-    async function importTable(tableData) {
-      let tableName;
-      let updateMethod;
-      let keys;
-      let prefetched = [];
+    async function importGeometry() {
+      const filepath = sourcePath(schema.point_geometry.filename);
+      const fileExists = await fs.exists(filepath);
 
-      if (Array.isArray(tableData)) {
-        // eslint-disable-next-line prefer-destructuring
-        tableName = tableData[0];
-        updateMethod = tableData[1] || upsert;
-        keys = tableData[2] || getIndexForTable(tableName);
-        prefetched = await prefetch({ knex, schema: SCHEMA, tableName });
-      } else {
-        tableName = tableData;
-        updateMethod = upsert;
-        keys = getIndexForTable(tableName);
+      const groupKeys = ["route_id", "direction", "date_begin", "date_end"];
+
+      if (fileExists) {
+        const onGroup = (group) =>
+          importGeometryGroup({
+            knex,
+            schema: SCHEMA,
+            trx,
+            tableName: "geometry",
+            group,
+            groupKeys,
+          });
+
+        return parseDatInGroups(
+          filepath,
+          schema.point_geometry.fields,
+          groupKeys,
+          knex,
+          st,
+          onGroup,
+        );
       }
 
-      return readTable(tableName, (lines) => {
-        const updateArg = {
-          knex,
-          schema: SCHEMA,
-          trx,
-          tableName,
-          itemData: lines,
-          indices: keys,
-          prefetched,
-        };
-
-        return updateMethod(updateArg);
-      });
+      return Promise.resolve();
     }
 
-    // eslint-disable-next-line no-unused-vars,no-use-before-define
-    const [_firstArg, _secondArg, ...selectedTables] = process.argv;
+    async function importTable(tableName) {
+      const keys = getIndexForTable(tableName);
+
+      const filepath = sourcePath(schema[tableName].filename);
+      const fileExists = await fs.exists(filepath);
+
+      if (fileExists) {
+        const onChunk = (lines) =>
+          upsert({
+            knex,
+            schema: SCHEMA,
+            trx,
+            tableName,
+            itemData: lines,
+            indices: keys,
+          });
+
+        return parseDat(
+          filepath,
+          schema[tableName].fields,
+          tableName,
+          knex,
+          st,
+          onChunk,
+          isInit ? 1000 : 100,
+        );
+      }
+
+      return Promise.resolve();
+    }
+
+    const [...selectedTables] = process.argv.slice(2);
 
     console.log(
       "Importing:",
@@ -145,40 +140,23 @@ knex
     } else {
       // If a table from the importSerial table is selected, import them all as they
       // may have some dependencies between them.
-      if (
-        _.intersectionBy(
-          importSerial,
-          selectedTables,
-          (value) => (Array.isArray(value) ? value[0] : value),
-        ).length !== 0
-      ) {
+      if (_.intersection(importSerial, selectedTables).length !== 0) {
         await pEachSeries(importSerial, (tableName) => importTable(tableName));
       }
 
       // Create import promises from the selected tables.
-      ops = _.intersectionBy(
-        importParallel,
-        selectedTables,
-        (value) => (Array.isArray(value) ? value[0] : value),
-      ).map(importTable);
+      ops = _.intersection(importParallel, selectedTables).map(importTable);
     }
-
-    let promise = ops.length !== 0 ? Promise.all(ops) : Promise.resolve();
 
     if (
       selectedTables.indexOf("geometry") !== -1 ||
       selectedTables.length === 0
     ) {
-      await promise;
-
-      const createGeometrySQL = await fs.readFile(
-        path.join(__dirname, "createGeometry.sql"),
-        "utf8",
-      );
-
-      promise = knex.raw(createGeometrySQL);
+      const geometryPromise = await importGeometry();
+      ops.push(geometryPromise);
     }
 
+    const promise = ops.length !== 0 ? Promise.all(ops) : Promise.resolve();
     return promise;
   })
   .then(() => console.log("Import succeeded."))

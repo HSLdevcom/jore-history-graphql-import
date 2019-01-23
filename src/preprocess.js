@@ -1,6 +1,7 @@
 /* eslint-disable no-await-in-loop */
 const fs = require("fs-extra");
 const path = require("path");
+const _ = require("lodash");
 const readline = require("readline");
 const iconv = require("iconv-lite");
 const schema = require("./schema");

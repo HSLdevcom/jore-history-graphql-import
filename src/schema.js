@@ -570,13 +570,8 @@ module.exports = {
       {
         length: 2,
         name: "extra_departure",
-        type: "enu",
-        typeOptions: [
-          "L", // Lisälähtö
-          "V", // Vara-auto
-          "LV", // Lisälähtö Vara-autolla
-          "0",
-        ],
+        type: "string",
+        defaultTo: "N",
       },
       {
         length: 2,
@@ -629,6 +624,7 @@ module.exports = {
       "minutes",
       "stop_id",
       "day_type",
+      "extra_departure",
     ],
   },
   note: {

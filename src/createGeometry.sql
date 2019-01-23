@@ -4,15 +4,6 @@ SELECT
   direction,
   date_begin,
   date_end,
-  jore.route_mode((
-    select route
-    from jore.route route
-    where geometry.route_id = route.route_id
-      and geometry.direction = route.direction
-      and route.date_begin <= geometry.date_end
-      and route.date_end >= geometry.date_begin
-    limit 1
-  )) as mode,
   ST_MakeLine(point order by index asc) as geom,
   0 as outliers,
   0 as min_likelihood
