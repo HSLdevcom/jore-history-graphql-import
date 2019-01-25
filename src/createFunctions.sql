@@ -14,12 +14,22 @@ create function jore.departure_origin_departure(departure jore.departure) return
 $$
 select *
 from jore.departure inner_departure
-where departure.route_id = inner_departure.route_id
-  and departure.direction = inner_departure.direction
-  and departure.date_begin = inner_departure.date_begin
-  and departure.date_end = inner_departure.date_end
-  and departure.departure_id = inner_departure.departure_id
-  and departure.day_type = inner_departure.day_type
+where inner_departure.route_id = departure.route_id
+  and inner_departure.direction = departure.direction
+  and inner_departure.date_begin = departure.date_begin
+  and inner_departure.date_end = departure.date_end
+  and inner_departure.departure_id = departure.departure_id
+  and inner_departure.day_type = departure.day_type
+  and inner_departure.stop_id = (
+    select originstop_id
+    from jore.route route
+    where route.route_id = departure.route_id
+      and route.direction = departure.direction
+      and route.date_begin <= departure.date_end
+      and route.date_end >= departure.date_begin
+    order by route.date_begin DESC
+    limit 1
+  )
 order by inner_departure.hours ASC, inner_departure.minutes ASC
 limit 1;
 $$ language sql
