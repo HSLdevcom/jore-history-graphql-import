@@ -27,7 +27,6 @@ module.exports = async function upsert({
 
   // Just insert if we don't have any indices
   if (primaryIndices.length === 0) {
-    console.log(`Inserting ${items.length} rows into ${tableName}`);
     return batchInsert(items);
   }
 
@@ -82,8 +81,6 @@ ${updateValues};
     ...insertValues,
     ...(!constraint ? primaryIndices : [constraint]),
   ];
-
-  console.log(`Inserting or updating ${items.length} rows in ${tableName}`);
 
   return trx.raw(upsertQuery, upsertBindings);
 };

@@ -60,6 +60,9 @@ function parseDat(filename, fields, tableName, knex, st, onChunk) {
   });
 }
 
+// A version of parseDat where the rows should be grouped by keys.
+// The array of strings provided as "groupBy" defines the properties
+// that the rows should be grouped by.
 function parseDatInGroups(
   filename,
   fields,
@@ -127,10 +130,6 @@ function parseDatInGroups(
 
               // Wait and process chunks if we're using three fourths of the memory already
               if ((available / 4) * 3 <= used) {
-                console.log(
-                  `Processing ${promises.length} chunks of ${tableName}.`,
-                );
-
                 await Promise.all(promises);
                 promises = [];
               }
