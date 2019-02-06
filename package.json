@@ -4,6 +4,7 @@
   "description": "Data importer for jore-history-graphql",
   "scripts": {
     "start": "node src/preprocess.js && node --max_old_space_size=2048 src/importPostgis.js",
+    "initdb": "PG_CONNECTION_STRING=postgres://postgres:mysecretpassword@localhost:5678/postgres node src/initDb.js",
     "preprocess": "node src/preprocess.js",
     "start:local": "PG_CONNECTION_STRING=postgres://postgres:mysecretpassword@localhost:5678/postgres node --max_old_space_size=2048 src/importPostgis.js",
     "lint": "eslint src --fix",
