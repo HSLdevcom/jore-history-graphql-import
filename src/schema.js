@@ -754,6 +754,16 @@ module.exports = {
         name: "operator_id",
         type: "string",
       },
+      {
+        length: 2,
+        name: "emission_class",
+        type: "string",
+      },
+      {
+        length: 30,
+        name: "emission_desc",
+        type: "string",
+      },
     ],
   },
 };
