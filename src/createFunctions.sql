@@ -21,26 +21,28 @@ where inner_departure.route_id = departure.route_id
   and inner_departure.departure_id = departure.departure_id
   and inner_departure.day_type = departure.day_type
   and inner_departure.stop_id = (
-    select originstop_id
-    from jore.route route
-    where route.route_id = departure.route_id
-      and route.direction = departure.direction
-      and route.date_begin <= departure.date_end
-      and route.date_end >= departure.date_begin
-    order by route.date_begin DESC
-    limit 1
-  )
+  select originstop_id
+  from jore.route route
+  where route.route_id = departure.route_id
+    and route.direction = departure.direction
+    and route.date_begin <= departure.date_end
+    and route.date_end >= departure.date_begin
+  order by route.date_begin DESC
+  limit 1
+)
 order by inner_departure.hours ASC, inner_departure.minutes ASC
 limit 1;
 $$ language sql
    stable;
 
-create function jore.stop_departures_for_date(stop jore.stop, date date) returns setof jore.departure as
+create function jore.stop_departures_for_date(stop jore.stop, date date, route_id varchar(6), direction text) returns setof jore.departure as
 $$
 select *
 from jore.departure departure
 where departure.stop_id = stop.stop_id
-  and case when date is null then true else date between date_begin and date_end end;
+  and case when date is null then true else date between date_begin and date_end end
+  and case when route_id is null then true else route_id = departure.route_id end
+  and case when direction is null then true else direction = departure.direction end;
 $$ language sql
    stable;
 
