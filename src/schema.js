@@ -766,4 +766,89 @@ module.exports = {
       },
     ],
   },
+  exception_days_calendar: {
+    filename: "epvkal.dat",
+    fields: [
+      {
+        length: 8,
+        name: "date_in_effect",
+        type: "date",
+        primary: true,
+        notNullable: true,
+      },
+      {
+        length: 2,
+        name: "exception_day_type",
+        type: "string",
+        notNullable: true,
+      },
+      {
+        length: 2,
+        name: "day_type",
+        type: "string",
+        notNullable: true,
+      },
+      {
+        length: 1,
+        name: "exclusive",
+        type: "integer",
+      },
+    ],
+  },
+  exception_days: {
+    filename: "eritpv.dat",
+    fields: [
+      {
+        length: 2,
+        name: "exception_day_type",
+        type: "date",
+        primary: true,
+        notNullable: true,
+      },
+      {
+        length: 50,
+        name: "description",
+        type: "string",
+      },
+    ],
+  },
+  replacement_days_calendar: {
+    filename: "kpvkal.dat",
+    fields: [
+      {
+        length: 8,
+        name: "date_in_effect",
+        type: "date",
+        primary: true,
+        notNullable: true,
+      },
+      {
+        length: 2,
+        name: "replacing_day_type",
+        type: "string",
+        notNullable: true,
+      },
+      {
+        length: 2,
+        name: "scope",
+        type: "string",
+      },
+      {
+        length: 2,
+        name: "day_type",
+        type: "string",
+        notNullable: true,
+      },
+      {
+        length: 4,
+        name: "time_begin",
+        type: "string",
+      },
+      {
+        length: 4,
+        name: "time_end",
+        type: "string",
+      },
+    ],
+  },
 };
