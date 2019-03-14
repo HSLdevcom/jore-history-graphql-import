@@ -79,6 +79,7 @@ knex
       if (fileExists) {
         // Get the primary constraint for the table
         const constraint = await getPrimaryConstraint(knex, tableName, SCHEMA);
+        console.log(constraint);
 
         const onChunk = (lines) =>
           queue.add(() =>

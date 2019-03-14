@@ -399,7 +399,7 @@ module.exports = {
         notNullable: true,
       },
     ],
-    primary: ["route_id", "direction", "date_begin", "date_end", "stop_id"],
+    primary: ["route_id", "direction", "date_begin", "date_end", "stop_index"],
   },
   point_geometry: {
     filename: "reittimuoto.dat",

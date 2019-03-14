@@ -17,6 +17,10 @@ module.exports = async function getPrimaryConstraint(
     [schemaName, tableName],
   );
 
-  // Only interested in unique constraints
-  return _.get(rows.filter((row) => row.contype === "u"), "[0].conname", null);
+  // Only interested in primary constraints
+  return _.get(
+    rows.filter((row) => row.conname.includes("pkey")),
+    "[0].conname",
+    null,
+  );
 };
