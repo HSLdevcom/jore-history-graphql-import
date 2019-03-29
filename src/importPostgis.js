@@ -62,6 +62,9 @@ const importParallel = [
   "route_segment",
   "departure",
   "equipment",
+  "exception_days_calendar",
+  "exception_days",
+  "replacement_days_calendar",
 ];
 
 knex
