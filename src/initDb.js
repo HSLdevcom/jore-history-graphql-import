@@ -1,5 +1,4 @@
-import { createTables, createForeignKeys } from "./util/createDb";
-
+const { createTables, createForeignKeys } = require("./util/createDb");
 const fs = require("fs-extra");
 const path = require("path");
 const tables = require("../src/schema");

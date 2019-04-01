@@ -801,7 +801,7 @@ module.exports = {
       {
         length: 2,
         name: "exception_day_type",
-        type: "date",
+        type: "string",
         primary: true,
         notNullable: true,
       },
