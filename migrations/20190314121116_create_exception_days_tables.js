@@ -3,6 +3,19 @@ const tables = require("../src/schema");
 const { createTables, createForeignKeys } = require("../src/util/createDb");
 
 exports.up = async function(knex) {
+  const hasTables = [
+    knex.schema.withSchema("jore").hasTable("exception_days_calendar"),
+    knex.schema.withSchema("jore").hasTable("exception_days"),
+    knex.schema.withSchema("jore").hasTable("replacement_days_calendar"),
+  ];
+
+  const tableStatus = await Promise.all(hasTables);
+
+  // Bail if any table already exists.
+  if (tableStatus.some((exists) => exists)) {
+    return;
+  }
+
   const addTables = pick(tables, [
     "exception_days_calendar",
     "exception_days",
