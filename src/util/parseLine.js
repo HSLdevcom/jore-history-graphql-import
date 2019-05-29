@@ -1,7 +1,7 @@
-const _ = require("lodash");
+import { get } from "lodash";
 
 // Parses a line into something that can be imported into the database.
-module.exports = function parseLine(line, fields, knex, st) {
+export function parseLine(line, fields, knex, st) {
   const values = {};
   let index = 1;
 
@@ -48,7 +48,7 @@ module.exports = function parseLine(line, fields, knex, st) {
 
   if (typeof values.lat !== "undefined" && typeof values.lon !== "undefined") {
     values.point = st.geomFromText(
-      `POINT(${_.get(values, "lon", 0)} ${_.get(values, "lat", 0)})`,
+      `POINT(${get(values, "lon", 0)} ${get(values, "lat", 0)})`,
       4326,
     );
   } else if (
@@ -56,7 +56,7 @@ module.exports = function parseLine(line, fields, knex, st) {
     typeof values.y !== "undefined"
   ) {
     values.point = knex.raw(
-      `ST_Transform(ST_GeomFromText('POINT(${_.get(values, "x", 0)} ${_.get(
+      `ST_Transform(ST_GeomFromText('POINT(${get(values, "x", 0)} ${get(
         values,
         "y",
         0,
@@ -65,4 +65,4 @@ module.exports = function parseLine(line, fields, knex, st) {
   }
 
   return values;
-};
+}

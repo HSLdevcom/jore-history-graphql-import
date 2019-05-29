@@ -7,3 +7,4 @@ postgres-data
 downloads
 tmp
 source
+.env

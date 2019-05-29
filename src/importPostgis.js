@@ -1,38 +1,28 @@
-const fs = require("fs-extra");
-const path = require("path");
-const upsert = require("./util/upsert");
-const { parseDat, parseDatInGroups } = require("./parseDat");
-const schema = require("./schema");
-const _ = require("lodash");
-const pEachSeries = require("p-each-series");
-const getPrimaryConstraint = require("./util/getPrimaryConstraint");
-const PQueue = require("p-queue");
+import fs from "fs-extra";
+import path from "path";
+import upsert from "./util/upsert";
+import { parseDat, parseDatInGroups } from "./parseDat";
+import schema from "./schema";
+import { pick, orderBy, intersection, get, uniq } from "lodash";
+import pEachSeries from "p-each-series";
+import getPrimaryConstraint from "./util/getPrimaryConstraint";
+import PQueue from "p-queue";
+import { getKnex } from "./knex";
 
-const knex = require("knex")({
-  dialect: "postgres",
-  client: "pg",
-  connection: process.env.PG_CONNECTION_STRING,
-  pool: {
-    min: 0,
-    max: 50,
-  },
-});
-
+const { knex, st } = getKnex();
 const SCHEMA = "jore";
-
-// install postgis functions in knex.postgis;
-const st = require("knex-postgis")(knex);
+const queue = new PQueue({ concurrency: 1000 });
 
 const sourcePath = (filename) =>
   path.join(__dirname, "..", "processed", filename);
 
 function getIndexForTable(tableName) {
-  const tableSchema = _.get(schema, tableName, false);
-  const compoundPrimary = _.get(tableSchema, "primary", []);
+  const tableSchema = get(schema, tableName, false);
+  const compoundPrimary = get(tableSchema, "primary", []);
 
-  const indices = _.get(tableSchema, "fields", []).reduceRight(
+  const indices = get(tableSchema, "fields", []).reduceRight(
     (indexNames, field) => {
-      const name = _.get(field, "name", "");
+      const name = get(field, "name", "");
 
       if (compoundPrimary.indexOf(name) !== -1) {
         return indexNames;
@@ -40,7 +30,7 @@ function getIndexForTable(tableName) {
 
       // If this field is an unique index, we're interested in it. Do not add
       // non-unique indices here.
-      if (name && _.get(field, "primary", false)) {
+      if (name && get(field, "primary", false)) {
         indexNames.push(name);
       }
 
@@ -49,7 +39,7 @@ function getIndexForTable(tableName) {
     [],
   );
 
-  return _.uniq([...indices, ...compoundPrimary]);
+  return uniq([...indices, ...compoundPrimary]);
 }
 
 // Import these serially and in this order
@@ -67,152 +57,158 @@ const importParallel = [
   "replacement_days_calendar",
 ];
 
-knex
-  .transaction(async (trx) => {
-    const queue = new PQueue({ concurrency: 1000 });
+// Import a table from a corresponding .dat file
+async function importTable(tableName, trx) {
+  const primaryKeys = getIndexForTable(tableName);
 
-    // Import a table from a corresponding .dat file
-    async function importTable(tableName) {
-      const primaryKeys = getIndexForTable(tableName);
+  // Get the filename from the schema definition and check that the file exists.
+  const filepath = sourcePath(schema[tableName].filename);
+  const fileExists = await fs.exists(filepath);
 
-      // Get the filename from the schema definition and check that the file exists.
-      const filepath = sourcePath(schema[tableName].filename);
-      const fileExists = await fs.exists(filepath);
+  if (fileExists) {
+    // Get the primary constraint for the table
+    const constraint = await getPrimaryConstraint(knex, tableName, SCHEMA);
 
-      if (fileExists) {
-        // Get the primary constraint for the table
-        const constraint = await getPrimaryConstraint(knex, tableName, SCHEMA);
+    const onChunk = (lines) =>
+      queue.add(() =>
+        upsert({
+          knex,
+          schema: SCHEMA,
+          trx,
+          tableName,
+          itemData: lines,
+          indices: primaryKeys,
+          constraint,
+        }),
+      );
 
-        const onChunk = (lines) =>
-          queue.add(() =>
-            upsert({
-              knex,
-              schema: SCHEMA,
-              trx,
-              tableName,
-              itemData: lines,
-              indices: primaryKeys,
-              constraint,
-            }),
+    return parseDat(
+      filepath,
+      schema[tableName].fields,
+      tableName,
+      knex,
+      st,
+      onChunk,
+      200,
+    );
+  }
+}
+
+// Import the geometry data from the point_geometry data with conversion
+async function importGeometry(trx) {
+  const tableName = "geometry";
+  const filepath = sourcePath(schema.point_geometry.filename);
+  const fileExists = await fs.exists(filepath);
+  const primaryKeys = getIndexForTable(tableName);
+
+  if (fileExists) {
+    const constraint = await getPrimaryConstraint(knex, tableName, SCHEMA);
+
+    const onChunk = (groups) =>
+      queue.add(() => {
+        // Convert the groups of points into geography objects
+        const geometryItems = groups.map((group) => {
+          // All objects have the primary keys in common
+          const geometryData = pick(group[0], primaryKeys);
+
+          // Extract the points of the group
+          const points = orderBy(group, "index", "ASC").map(
+            ({ point }) => point,
           );
 
-        return parseDat(
-          filepath,
-          schema[tableName].fields,
-          tableName,
+          // Return a geometry object with a geometric line created with PostGIS.
+          return {
+            ...geometryData,
+            geom: knex.raw(
+              `ST_MakeLine(ARRAY[${points.map(() => "?").join(",")}])`,
+              points,
+            ),
+          };
+        });
+
+        return upsert({
           knex,
-          st,
-          onChunk,
-          200,
-        );
-      }
-    }
-
-    // Import the geometry data from the point_geometry data with conversion
-    async function importGeometry() {
-      const tableName = "geometry";
-      const filepath = sourcePath(schema.point_geometry.filename);
-      const fileExists = await fs.exists(filepath);
-      const primaryKeys = getIndexForTable(tableName);
-
-      if (fileExists) {
-        const constraint = await getPrimaryConstraint(knex, tableName, SCHEMA);
-
-        const onChunk = (groups) =>
-          queue.add(() => {
-            // Convert the groups of points into geography objects
-            const geometryItems = groups.map((group) => {
-              // All objects have the primary keys in common
-              const geometryData = _.pick(group[0], primaryKeys);
-
-              // Extract the points of the group
-              const points = _.orderBy(group, "index", "ASC").map(
-                ({ point }) => point,
-              );
-
-              // Return a geometry object with a geometric line created with PostGIS.
-              return {
-                ...geometryData,
-                geom: knex.raw(
-                  `ST_MakeLine(ARRAY[${points.map(() => "?").join(",")}])`,
-                  points,
-                ),
-              };
-            });
-
-            return upsert({
-              knex,
-              schema: SCHEMA,
-              trx,
-              tableName,
-              itemData: geometryItems,
-              indices: primaryKeys,
-              constraint,
-            });
-          });
-
-        return parseDatInGroups(
-          filepath,
-          schema.point_geometry.fields,
-          primaryKeys,
-          knex,
-          st,
+          schema: SCHEMA,
+          trx,
           tableName,
-          onChunk,
-        );
-      }
-    }
+          itemData: geometryItems,
+          indices: primaryKeys,
+          constraint,
+        });
+      });
 
-    // Get the selected tables from the CLI args
-    const [...selectedTables] = process.argv.slice(2);
-
-    console.log(
-      "Importing:",
-      selectedTables.length !== 0 ? selectedTables.join(", ") : "all",
+    return parseDatInGroups(
+      filepath,
+      schema.point_geometry.fields,
+      primaryKeys,
+      knex,
+      st,
+      tableName,
+      onChunk,
     );
+  }
 
-    // The insert/update operations for the tables
-    let ops = [];
+  return Promise.reject(Error(`File ${filepath} does not exist.`));
+}
 
-    // Case: all tables selected
-    if (selectedTables.length === 0) {
-      // These tables are depended upon through foreign keys, so they need to
-      // be imported first and in this order.
-      await pEachSeries(importSerial, (tableName) => importTable(tableName));
-      ops = importParallel.map(importTable);
+export async function runImport() {
+  try {
+    await knex.transaction(async (trx) => {
+      // Get the selected tables from the CLI args
+      const [...selectedTables] = process.argv.slice(2);
 
-      // Case: some tables were selected
-    } else {
-      // If a table from the importSerial table is selected, import them all as they
-      // may have some dependencies between them.
-      if (_.intersection(importSerial, selectedTables).length !== 0) {
-        await pEachSeries(importSerial, (tableName) => importTable(tableName));
+      console.log(
+        "Importing:",
+        selectedTables.length !== 0 ? selectedTables.join(", ") : "all",
+      );
+
+      // The insert/update operations for the tables
+      let ops = [];
+
+      // Case: all tables selected
+      if (selectedTables.length === 0) {
+        // These tables are depended upon through foreign keys, so they need to
+        // be imported first and in this order.
+        await pEachSeries(importSerial, (tableName) =>
+          importTable(tableName, trx),
+        );
+        ops = importParallel.map((tableName) => importTable(tableName, trx));
+
+        // Case: some tables were selected
+      } else {
+        // If a table from the importSerial table is selected, import them all as they
+        // may have some dependencies between them.
+        if (intersection(importSerial, selectedTables).length !== 0) {
+          await pEachSeries(importSerial, (tableName) =>
+            importTable(tableName, trx),
+          );
+        }
+
+        // Create import promises from the selected tables.
+        ops = intersection(importParallel, selectedTables).map((tableName) =>
+          importTable(tableName, trx),
+        );
       }
 
-      // Create import promises from the selected tables.
-      ops = _.intersection(importParallel, selectedTables).map(importTable);
-    }
+      // If the geometry table was selected or if all tables were selected...
+      if (
+        selectedTables.indexOf("geometry") !== -1 ||
+        selectedTables.length === 0
+      ) {
+        // Special treatment for the geometry data, since it is reading from
+        // point_geometry, converting those into geometry groups and inserting
+        // into the geometry table.
+        const geometryPromise = await importGeometry(trx);
+        ops.push(geometryPromise);
+      }
 
-    // If the geometry table was selected or if all tables were selected...
-    if (
-      selectedTables.indexOf("geometry") !== -1 ||
-      selectedTables.length === 0
-    ) {
-      // Special treatment for the geometry data, since it is reading from
-      // point_geometry, converting those into geometry groups and inserting
-      // into the geometry table.
-      const geometryPromise = await importGeometry();
-      ops.push(geometryPromise);
-    }
-
-    const promise = ops.length !== 0 ? Promise.all(ops) : Promise.resolve();
-    return promise;
-  })
-  .then(() => console.log("Import succeeded."))
-  .catch((err) => {
+      return ops.length !== 0 ? Promise.all(ops) : Promise.resolve();
+    });
+  } catch (err) {
     console.error(err);
-  })
-  .finally(() => {
-    knex.destroy();
-    process.exit(0);
-  });
+    console.log("Import failed");
+    return;
+  }
+
+  console.log("Import succeeded.");
+}

@@ -1,9 +1,9 @@
 /* eslint-disable no-await-in-loop */
-const fs = require("fs-extra");
-const path = require("path");
-const readline = require("readline");
-const iconv = require("iconv-lite");
-const schema = require("./schema");
+import fs from "fs-extra";
+import path from "path";
+import readline from "readline";
+import iconv from "iconv-lite";
+import schema from "./schema";
 
 const isWhitespaceOnly = /^\s*$/;
 
@@ -125,11 +125,14 @@ async function updateEncoding() {
   }
 }
 
-fs.ensureDir(path.join(__dirname, "..", "processed"))
-  .then(() => updateEncoding())
-  .then(() => replaceLinebreaks())
-  .then(() => replaceGeometryIndexes())
-  .catch((error) => {
-    console.error(error);
+export async function preprocess() {
+  try {
+    await fs.ensureDir(path.join(__dirname, "..", "processed"));
+    await updateEncoding();
+    await replaceLinebreaks();
+    await replaceGeometryIndexes();
+  } catch (err) {
+    console.error(err);
     process.exit(1);
-  });
+  }
+}

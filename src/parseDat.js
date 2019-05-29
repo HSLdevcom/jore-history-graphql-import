@@ -1,12 +1,14 @@
-const fs = require("fs");
+/*const fs = require("fs");
 const readline = require("readline");
 const getMemoryStats = require("./util/getMemoryStats");
 const createPrimaryKey = require("./util/createPrimaryKey");
-const parseLine = require("./util/parseLine");
+const parseLine = require("./util/parseLine");*/
+import fs from "fs-extra";
+import readline from "readline";
 
 const isWhitespaceOnly = /^\s*$/;
 
-function parseDat(filename, fields, tableName, knex, st, onChunk) {
+export async function parseDat(filename, fields, tableName, knex, st, onChunk) {
   return new Promise((resolve, reject) => {
     let lines = [];
 
@@ -63,7 +65,7 @@ function parseDat(filename, fields, tableName, knex, st, onChunk) {
 // A version of parseDat where the rows should be grouped by keys.
 // The array of strings provided as "groupBy" defines the properties
 // that the rows should be grouped by.
-function parseDatInGroups(
+export async function parseDatInGroups(
   filename,
   fields,
   groupBy,
@@ -158,5 +160,3 @@ function parseDatInGroups(
     });
   });
 }
-
-module.exports = { parseDat, parseDatInGroups };

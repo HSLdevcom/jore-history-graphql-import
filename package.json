@@ -3,13 +3,13 @@
   "version": "0.0.1",
   "description": "Data importer for jore-history-graphql",
   "scripts": {
-    "start": "node src/preprocess.js && node --max_old_space_size=2048 src/importPostgis.js",
-    "initdb": "PG_CONNECTION_STRING=postgres://postgres:mysecretpassword@localhost:5678/postgres node src/initDb.js",
+    "start": "node -r dotenv/config src/preprocess.js && node --max_old_space_size=2048 -r dotenv/config src/importPostgis.js",
+    "initdb": "node -r dotenv/config src/initDb.js",
     "preprocess": "node src/preprocess.js",
-    "start:local": "PG_CONNECTION_STRING=postgres://postgres:mysecretpassword@localhost:5678/postgres node --max_old_space_size=2048 src/importPostgis.js",
+    "start:local": "node --max_old_space_size=2048 -r dotenv/config src/importPostgis.js",
     "lint": "eslint src --fix",
     "prettier": "prettier */**.{js,json} --write",
-    "knex": "PG_CONNECTION_STRING=postgres://postgres:mysecretpassword@localhost:5678/postgres knex",
+    "knex": "PG_CONNECTION_STRING=postgres://postgres:mysecretpassword@localhost:5432/postgres knex",
     "docker:knex": "knex"
   },
   "repository": {
@@ -17,7 +17,7 @@
     "url": "git+https://github.com/HSLdevcom/jore-history-graphql-import.git"
   },
   "keywords": [],
-  "author": "Hannes Junnila <hannes.junnila@gmail.com>",
+  "author": "Daniel Dunderfelt <daniel@developsuperpowers.com>",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/HSLdevcom/jore-history-graphql-import/issues"
@@ -26,6 +26,7 @@
   "dependencies": {
     "chardet": "^0.7.0",
     "date-fns": "^1.30.1",
+    "dotenv": "^8.0.0",
     "fs-extra": "^7.0.0",
     "iconv-lite": "^0.4.24",
     "knex": "^0.16.2",
@@ -38,6 +39,7 @@
     "stream-splicer": "^2.0.0"
   },
   "devDependencies": {
+    "babel-eslint": "^10.0.1",
     "eslint": "^5.4.0",
     "eslint-config-airbnb-base": "^13.1.0",
     "eslint-config-prettier": "^3.0.1",

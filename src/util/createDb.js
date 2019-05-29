@@ -1,6 +1,6 @@
-const _ = require("lodash");
+import { find } from "lodash";
 
-function createTables(schema, knexInstance, config) {
+export async function createTables(schema, knexInstance, config) {
   const schemaPromises = [];
 
   Object.entries(config).forEach(([tableName, { fields }]) => {
@@ -51,9 +51,8 @@ function createTables(schema, knexInstance, config) {
           },
         );
         if (
-          (_.find(fields, { name: "lat" }) &&
-            _.find(fields, { name: "lon" })) ||
-          (_.find(fields, { name: "x" }) && _.find(fields, { name: "y" }))
+          (find(fields, { name: "lat" }) && find(fields, { name: "lon" })) ||
+          (find(fields, { name: "x" }) && find(fields, { name: "y" }))
         ) {
           table.specificType("point", "geometry(point, 4326)");
           table.index("point", `${tableName}_points_gix`, "GIST");
@@ -66,7 +65,7 @@ function createTables(schema, knexInstance, config) {
   return Promise.all(schemaPromises);
 }
 
-function createForeignKeys(schema, knexInstance, config) {
+export async function createForeignKeys(schema, knexInstance, config) {
   const schemaPromises = [];
 
   Object.entries(config).forEach(([tableName, { fields, primary }]) => {
@@ -90,8 +89,3 @@ function createForeignKeys(schema, knexInstance, config) {
 
   return Promise.all(schemaPromises);
 }
-
-module.exports = {
-  createTables,
-  createForeignKeys,
-};

@@ -1,19 +1,12 @@
-const { createTables, createForeignKeys } = require("./util/createDb");
-const fs = require("fs-extra");
-const path = require("path");
-const tables = require("../src/schema");
+import { createTables, createForeignKeys } from "./util/createDb";
+import fs from "fs-extra";
+import path from "path";
+import tables from "./schema";
+import { getKnex } from "./knex";
 
-const knex = require("knex")({
-  dialect: "postgres",
-  client: "pg",
-  connection: process.env.PG_CONNECTION_STRING,
-  pool: {
-    min: 0,
-    max: 50,
-  },
-});
+const { knex } = getKnex();
 
-(async function initDb() {
+export async function initDb() {
   try {
     const createSchemaSQL = await fs.readFile(
       path.join(__dirname, "../src/", "createSchema.sql"),
@@ -37,4 +30,4 @@ const knex = require("knex")({
   }
 
   process.exit(0);
-})();
+}

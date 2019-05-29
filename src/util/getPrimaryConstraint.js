@@ -1,6 +1,6 @@
-const _ = require("lodash");
+import { get } from "lodash";
 
-module.exports = async function getPrimaryConstraint(
+export async function getPrimaryConstraint(
   knex,
   tableName,
   schemaName = "public",
@@ -18,9 +18,9 @@ module.exports = async function getPrimaryConstraint(
   );
 
   // Only interested in primary constraints
-  return _.get(
+  return get(
     rows.filter((row) => row.conname.includes("pkey")),
     "[0].conname",
     null,
   );
-};
+}

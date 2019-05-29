@@ -1,7 +1,7 @@
-const _ = require("lodash");
-const createPrimaryKey = require("./createPrimaryKey");
+import _ from "lodash";
+import createPrimaryKey from "./createPrimaryKey";
 
-module.exports = async function upsert({
+export async function upsert({
   knex,
   schema,
   trx,
@@ -83,4 +83,4 @@ ${updateValues};
   ];
 
   return trx.raw(upsertQuery, upsertBindings);
-};
+}

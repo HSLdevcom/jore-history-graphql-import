@@ -12,8 +12,10 @@ WORKDIR ${WORK}
 # Install app dependencies
 COPY package.json ${WORK}
 COPY yarn.lock ${WORK}
+COPY .env.production ${WORK}/.env
+
 RUN yarn install
 
 # Copy app source
 COPY . ${WORK}
-CMD ./run_daily.sh
+CMD yarn run start
