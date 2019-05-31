@@ -1,8 +1,9 @@
 import { preprocess } from "./preprocess";
 import { runImport } from "./importPostgis";
-import { getLatestExportFile } from "./util/joreExportManager";
+import { getImportData } from "./getImportData";
 import { initDb } from "./initDb";
 import { getKnex } from "./knex";
+import schema from "./schema";
 
 const { knex } = getKnex();
 
@@ -11,8 +12,19 @@ const { knex } = getKnex();
   await initDb();
   await knex.migrate.latest();
 
-  console.log("Checking latest import state...");
-  await getLatestExportFile();
+  console.log("Getting import data...");
+
+  const dataStream = await getImportData(
+    Object.values(schema)
+      .filter(({ filename }) => !["aikat.dat", "pysakki.dat"].includes(filename))
+      .map(({ filename }) => filename),
+  );
+
+  if (!dataStream) {
+    console.log("Nothing to import.");
+    process.exit(0);
+  }
+
   /*await preprocess();
   await runImport();*/
 

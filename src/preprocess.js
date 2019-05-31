@@ -1,48 +1,28 @@
-/* eslint-disable no-await-in-loop */
-import fs from "fs-extra";
-import path from "path";
 import readline from "readline";
 import iconv from "iconv-lite";
-import schema from "./schema";
 
 const isWhitespaceOnly = /^\s*$/;
 
-const filenames = Object.values(schema)
-  .map((table) => table.filename)
-  .filter((filename) => !!filename);
+function lineProcessor(input, output, callback) {
+  const lineReader = readline.createInterface({ input, historySize: 0, terminal: false });
 
-function processLines(filename, callback) {
-  return new Promise((resolve, reject) => {
-    const filePath = path.join(__dirname, "..", "processed", filename);
-    const tempPath = `${filePath}.tmp`;
-
-    const input = fs.createReadStream(filePath);
-    const output = fs.createWriteStream(tempPath);
-    const lineReader = readline.createInterface({ input });
-
-    lineReader.on("line", (line) => {
-      if (!isWhitespaceOnly.test(line)) {
-        callback(line, output);
-      }
-    });
-    lineReader.on("close", () => {
-      output.end();
-      fs.rename(
-        tempPath,
-        filePath,
-        (error) => (error ? reject(error) : resolve()),
-      );
-    });
+  lineReader.on("line", (line) => {
+    if (!isWhitespaceOnly.test(line)) {
+      callback(line, output);
+    }
   });
+
+  lineReader.on("close", () => {
+    output.end();
+  });
+
+  return output;
 }
 
-function readLineLength(filename) {
+function readLineLength(input) {
   return new Promise((resolve) => {
     let maxLength = 0;
-    const filePath = path.join(__dirname, "..", "data", filename);
-    const lineReader = readline.createInterface({
-      input: fs.createReadStream(filePath),
-    });
+    const lineReader = readline.createInterface({ input });
 
     lineReader.on("line", (line) => {
       if (line.length > maxLength) maxLength = line.length;
@@ -53,86 +33,63 @@ function readLineLength(filename) {
   });
 }
 
-async function replaceLinebreaks() {
-  for (let i = 0; i < filenames.length; i += 1) {
-    const lineLength = await readLineLength(filenames[i]);
+async function replaceLinebreaks(lineLength, onDone) {
+  let lines = [];
 
-    let lines = [];
-    const callback = (line, stream) => {
-      lines = [...lines, line];
-      const currentLength = lines.join("\r\n").length;
+  return (line, stream) => {
+    lines = [...lines, line];
+    const currentLength = lines.join("\n").length;
 
-      if (currentLength > lineLength) {
-        const output = lines.join("\n");
-        stream.write(`${output}\n`);
-        console.log(`Did not replace linebreak(s):\n${output}`);
-        lines = [];
-      }
-      if (currentLength === lineLength) {
-        const output = lines.join("  ");
-        stream.write(`${output}\n`);
-        if (lines.length > 1) console.log(`Replaced linebreak(s):\n${output}`);
-        lines = [];
-      }
-    };
+    if (currentLength > lineLength) {
+      const output = lines.join("\n");
+      onDone(`${output}\n`, stream);
 
-    await processLines(filenames[i], callback);
-  }
+      console.log(`Did not replace linebreak(s):\n${output}`);
+      lines = [];
+    }
+    if (currentLength === lineLength) {
+      const output = lines.join("  ");
+      onDone(`${output}\n`, stream);
+
+      if (lines.length > 1) console.log(`Replaced linebreak(s):\n${output}`);
+      lines = [];
+    }
+  };
 }
 
-async function replaceGeometryIndexes() {
+function replaceGeometryIndexes() {
   let index = 1;
   let previous;
 
-  const callback = (line, stream) => {
+  return (line, stream) => {
     const lineId = line.substr(0, 24);
     index = lineId === previous ? index + 1 : 1;
     const indexPadded = `${"0".repeat(4 - index.toString().length)}${index}`;
     const lineIndexed = `${line.substr(0, 32)}${indexPadded}${line.slice(36)}`;
-    stream.write(`${lineIndexed}\r\n`);
+    stream.write(`${lineIndexed}\n`);
 
     if (line !== lineIndexed) {
       console.log(`Replaced invalid geometry index: ${lineId}`);
     }
+
     previous = lineId;
   };
-
-  await processLines("reittimuoto.dat", callback);
 }
 
-function updateEncodingInner(filename) {
-  return new Promise((resolve) => {
-    const filePath = path.join(__dirname, "..", "data", filename);
-    const destPath = path.join(__dirname, "..", "processed", filename);
+async function processLines(fileStream, output, name) {
+  const writer = (line, stream) => {
+    stream.write(line);
+  };
 
-    const inStream = fs.createReadStream(filePath);
-    const outStream = fs.createWriteStream(destPath);
-
-    inStream
-      .pipe(iconv.decodeStream("ISO-8859-1"))
-      .pipe(iconv.encodeStream("utf8"))
-      .pipe(outStream);
-
-    outStream.on("close", () => {
-      resolve();
-    });
-  });
+  const processor = name === "reittimuoto.dat" ? replaceGeometryIndexes() : writer;
+  return lineProcessor(fileStream, output, processor);
 }
 
-async function updateEncoding() {
-  for (const file of filenames) {
-    await updateEncodingInner(file);
-  }
-}
+export async function preprocess(fileStream, outputStream) {
+  const name = fileStream.path;
+  const recoded = fileStream
+    .pipe(iconv.decodeStream("ISO-8859-1"))
+    .pipe(iconv.encodeStream("utf8"));
 
-export async function preprocess() {
-  try {
-    await fs.ensureDir(path.join(__dirname, "..", "processed"));
-    await updateEncoding();
-    await replaceLinebreaks();
-    await replaceGeometryIndexes();
-  } catch (err) {
-    console.error(err);
-    process.exit(1);
-  }
+  return processLines(recoded, outputStream, name);
 }

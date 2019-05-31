@@ -14,7 +14,8 @@
     "sort-imports": "off",
     "no-await-in-loop": "off",
     "no-plusplus": "off",
-    "import/prefer-default-export": "off"
+    "import/prefer-default-export": "off",
+    "prettier/prettier": true
   },
   "env": {
     "node": true,
