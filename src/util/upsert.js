@@ -1,5 +1,5 @@
 import _ from "lodash";
-import createPrimaryKey from "./createPrimaryKey";
+import { createPrimaryKey } from "./createPrimaryKey";
 
 export async function upsert({
   knex,

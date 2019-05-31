@@ -3,14 +3,12 @@
   "version": "0.0.1",
   "description": "Data importer for jore-history-graphql",
   "scripts": {
-    "start": "node -r dotenv/config src/preprocess.js && node --max_old_space_size=2048 -r dotenv/config src/importPostgis.js",
-    "initdb": "node -r dotenv/config src/initDb.js",
-    "preprocess": "node src/preprocess.js",
-    "start:local": "node --max_old_space_size=2048 -r dotenv/config src/importPostgis.js",
+    "start": "node --max_old_space_size=2048 -r esm -r dotenv/config src/index.js",
     "lint": "eslint src --fix",
     "prettier": "prettier */**.{js,json} --write",
-    "knex": "PG_CONNECTION_STRING=postgres://postgres:mysecretpassword@localhost:5432/postgres knex",
-    "docker:knex": "knex"
+    "ftpsource": "ftp-srv ftp://127.0.0.1:2121 --root ./source",
+    "knex": "knex",
+    "knex:local": "PG_CONNECTION_STRING=postgres://postgres:mysecretpassword@localhost:5678/postgres knex"
   },
   "repository": {
     "type": "git",
@@ -24,19 +22,22 @@
   },
   "homepage": "https://github.com/HSLdevcom/jore-history-graphql-import",
   "dependencies": {
+    "basic-ftp": "^3.5.0",
     "chardet": "^0.7.0",
     "date-fns": "^1.30.1",
     "dotenv": "^8.0.0",
+    "esm": "^3.2.25",
     "fs-extra": "^7.0.0",
+    "ftp-srv": "^4.1.0",
     "iconv-lite": "^0.4.24",
     "knex": "^0.16.2",
     "knex-postgis": "^0.7.0",
     "lodash": "^4.17.10",
     "p-each-series": "^1.0.0",
+    "p-map": "^2.1.0",
     "p-queue": "^3.0.0",
     "peek-stream": "^1.1.3",
     "pg": "^7.7.1",
-    "promise-ftp": "^1.3.5",
     "stream-splicer": "^2.0.0"
   },
   "devDependencies": {

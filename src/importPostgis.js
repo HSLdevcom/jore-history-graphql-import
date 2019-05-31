@@ -1,11 +1,11 @@
 import fs from "fs-extra";
 import path from "path";
-import upsert from "./util/upsert";
+import { upsert } from "./util/upsert";
 import { parseDat, parseDatInGroups } from "./parseDat";
 import schema from "./schema";
 import { pick, orderBy, intersection, get, uniq } from "lodash";
 import pEachSeries from "p-each-series";
-import getPrimaryConstraint from "./util/getPrimaryConstraint";
+import { getPrimaryConstraint } from "./util/getPrimaryConstraint";
 import PQueue from "p-queue";
 import { getKnex } from "./knex";
 

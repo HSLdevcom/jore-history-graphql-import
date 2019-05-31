@@ -1,12 +1,22 @@
-import { find } from "lodash";
+import { find, compact } from "lodash";
+import { getKnex } from "../knex";
+import pMap from "p-map";
 
-export async function createTables(schema, knexInstance, config) {
-  const schemaPromises = [];
+const { knex } = getKnex();
 
-  Object.entries(config).forEach(([tableName, { fields }]) => {
-    const tablePromise = knexInstance.schema
-      .withSchema(schema)
-      .createTable(tableName, (table) => {
+export async function createTables(schema, config) {
+  const createdTables = await pMap(
+    Object.entries(config),
+    async ([tableName, { fields }]) => {
+      const tableExists = await knex.schema
+        .withSchema(schema)
+        .hasTable(tableName);
+
+      if (tableExists) {
+        return "";
+      }
+
+      await knex.schema.withSchema(schema).createTable(tableName, (table) => {
         fields.forEach(
           ({
             length,
@@ -59,33 +69,27 @@ export async function createTables(schema, knexInstance, config) {
         }
       });
 
-    schemaPromises.push(tablePromise);
-  });
+      return tableName;
+    },
+  );
 
-  return Promise.all(schemaPromises);
+  return compact(createdTables);
 }
 
-export async function createForeignKeys(schema, knexInstance, config) {
-  const schemaPromises = [];
-
-  Object.entries(config).forEach(([tableName, { fields, primary }]) => {
-    const indexPromise = knexInstance.schema
-      .withSchema(schema)
-      .table(tableName, (table) => {
-        if (primary) {
-          table.unique(primary).primary(primary);
+export async function createForeignKeys(schema, config) {
+  return pMap(Object.entries(config), ([tableName, { fields, primary }]) => {
+    return knex.schema.withSchema(schema).table(tableName, (table) => {
+      if (primary) {
+        table.unique(primary).primary(primary);
+      }
+      fields.forEach(({ name, type, foreign }) => {
+        if (name && type && foreign) {
+          table
+            .foreign(name)
+            .references(foreign.split(".")[1])
+            .inTable(`jore.${foreign.split(".")[0]}`);
         }
-        fields.forEach(({ name, type, foreign }) => {
-          if (name && type && foreign) {
-            table
-              .foreign(name)
-              .references(foreign.split(".")[1])
-              .inTable(`jore.${foreign.split(".")[0]}`);
-          }
-        });
       });
-    schemaPromises.push(indexPromise);
+    });
   });
-
-  return Promise.all(schemaPromises);
 }

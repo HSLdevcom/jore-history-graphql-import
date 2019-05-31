@@ -3,6 +3,7 @@ import fs from "fs-extra";
 import path from "path";
 import tables from "./schema";
 import { getKnex } from "./knex";
+import { pick } from "lodash";
 
 const { knex } = getKnex();
 
@@ -15,8 +16,11 @@ export async function initDb() {
 
     await knex.raw(createSchemaSQL);
 
-    await createTables("jore", knex, tables);
-    await createForeignKeys("jore", knex, tables);
+    const createdTables = await createTables("jore", tables);
+
+    if (createdTables.length !== 0) {
+      await createForeignKeys("jore", pick(tables, createdTables));
+    }
 
     const createFunctionsSQL = await fs.readFile(
       path.join(__dirname, "../src/", "createFunctions.sql"),
@@ -28,6 +32,4 @@ export async function initDb() {
     console.error(err);
     process.exit(1);
   }
-
-  process.exit(0);
 }
