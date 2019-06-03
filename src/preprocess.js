@@ -19,44 +19,6 @@ function lineProcessor(input, output, callback) {
   return output;
 }
 
-function readLineLength(input) {
-  return new Promise((resolve) => {
-    let maxLength = 0;
-    const lineReader = readline.createInterface({ input });
-
-    lineReader.on("line", (line) => {
-      if (line.length > maxLength) maxLength = line.length;
-    });
-    lineReader.on("close", () => {
-      resolve(maxLength);
-    });
-  });
-}
-
-async function replaceLinebreaks(lineLength, onDone) {
-  let lines = [];
-
-  return (line, stream) => {
-    lines = [...lines, line];
-    const currentLength = lines.join("\n").length;
-
-    if (currentLength > lineLength) {
-      const output = lines.join("\n");
-      onDone(`${output}\n`, stream);
-
-      console.log(`Did not replace linebreak(s):\n${output}`);
-      lines = [];
-    }
-    if (currentLength === lineLength) {
-      const output = lines.join("  ");
-      onDone(`${output}\n`, stream);
-
-      if (lines.length > 1) console.log(`Replaced linebreak(s):\n${output}`);
-      lines = [];
-    }
-  };
-}
-
 function replaceGeometryIndexes() {
   let index = 1;
   let previous;
@@ -76,7 +38,7 @@ function replaceGeometryIndexes() {
   };
 }
 
-async function processLines(fileStream, output, name) {
+function processLines(fileStream, output, name) {
   const writer = (line, stream) => {
     stream.write(line);
   };

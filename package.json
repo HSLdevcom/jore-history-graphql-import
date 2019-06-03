@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "description": "Data importer for jore-history-graphql",
   "scripts": {
-    "start": "node --max_old_space_size=2048 -r esm -r dotenv/config src/index.js",
+    "start": "node --max_old_space_size=4096 -r esm -r dotenv/config src/index.js",
     "lint": "eslint src --fix",
     "prettier": "prettier */**.{js,json} --write",
     "ftpsource": "ftp-srv ftp://127.0.0.1:2121 --root ./source",
