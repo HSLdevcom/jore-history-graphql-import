@@ -2,12 +2,9 @@ import { createTables, createForeignKeys } from "./util/createDb";
 import fs from "fs-extra";
 import path from "path";
 import tables from "./schema";
-import { getKnex } from "./knex";
 import { pick } from "lodash";
 
-const { knex } = getKnex();
-
-export async function initDb() {
+export async function initDb(knex) {
   try {
     const createSchemaSQL = await fs.readFile(
       path.join(__dirname, "../src/", "createSchema.sql"),
@@ -15,7 +12,6 @@ export async function initDb() {
     );
 
     await knex.raw(createSchemaSQL);
-
     const createdTables = await createTables("jore", tables);
 
     if (createdTables.length !== 0) {

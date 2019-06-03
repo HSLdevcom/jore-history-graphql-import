@@ -1,10 +1,9 @@
-import { Client } from "basic-ftp/dist/index";
+import Client from "ftp-ts";
 import fs from "fs-extra";
 import { orderBy, get } from "lodash";
 import { getKnex } from "./knex";
 import path from "path";
 import { Parse } from "unzipper";
-import es from "event-stream";
 import { preprocess } from "./preprocess";
 
 const { knex } = getKnex();
@@ -27,65 +26,74 @@ async function getLatestImportedFile() {
     .limit(1);
 }
 
-export async function getImportData(filesToDownload = []) {
-  if (!FTP_PASSWORD || !FTP_USERNAME || !FTP_HOST || filesToDownload.length === 0) {
+async function getFromFTP() {
+  if (!FTP_PASSWORD || !FTP_USERNAME || !FTP_HOST) {
     return null;
   }
 
-  const client = new Client();
+  const client = await Client.connect({
+    host: FTP_HOST,
+    user: FTP_USERNAME,
+    password: FTP_PASSWORD,
+    port: FTP_PORT,
+    secure: false,
+  });
 
+  await client.cwd(FTP_EXPORTS_DIR_PATH);
+  const files = await client.list();
+
+  const zips = files.filter(({ name }) => name.endsWith(".zip"));
+  const newestFile = orderBy(zips, "name", "desc")[0];
+  const newestFileName = get(newestFile, "name", "");
+
+  return {
+    newestExportName: newestFileName,
+    getFileStream: () => client.get(newestFileName),
+    closeClient: () => client.end(),
+  };
+}
+
+export async function getImportData(filesToDownload = [], onFileDownloaded) {
   try {
-    await client.access({
-      host: FTP_HOST,
-      user: FTP_USERNAME,
-      password: FTP_PASSWORD,
-      port: FTP_PORT,
-      secure: false,
-    });
-
-    await client.cd(FTP_EXPORTS_DIR_PATH);
-    const files = await client.list();
-
-    const zips = files.filter(({ name }) => name.endsWith(".zip"));
-    const newestFile = orderBy(zips, "name", "desc")[0];
-    const newestFileName = get(newestFile, "name", "");
     const latestImported = await getLatestImportedFile();
+    const ftp = await getFromFTP();
+
+    if (!ftp) {
+      return null;
+    }
+
+    const { newestExportName, getFileStream, closeClient } = ftp;
+
+    if (!newestExportName) {
+      return null;
+    }
 
     if (
-      // If the latest imported file is not the latest on the remote server...
-      latestImported.filename !== newestFileName ||
-      // Or if the latest import is not in progress and failed
+      newestExportName !== latestImported ||
+      // If the latest import is not in progress and failed
       (!latestImported.success && latestImported.import_end !== null)
     ) {
-      await fs.ensureDir(path.join(cwd, "downloads"));
-      await fs.emptyDir(path.join(cwd, "data"));
+      console.log(`Newest export is ${newestExportName}`);
+      const fileStream = await getFileStream();
 
-      const downloadPath = path.join(cwd, "downloads", newestFileName);
-      const fileExists = await fs.pathExists(downloadPath);
-
-      if (!fileExists) {
-        const downloadStream = fs.createWriteStream(downloadPath);
-        await client.download(downloadStream, newestFileName);
-      }
-
-      const unzippedFiles = {};
-
-      await fs
-        .createReadStream(downloadPath)
+      await fileStream
         .pipe(Parse())
-        .on("entry", async (entry) => {
+        .on("entry", (entry) => {
           if (filesToDownload.includes(entry.path)) {
-            const dataPath = path.join(cwd, "data", entry.path);
-            const output = fs.createWriteStream(dataPath);
-            return preprocess(entry, output);
+            onFileDownloaded(entry.path, entry);
           }
 
-          return entry.autodrain();
+          entry.autodrain();
         })
         .promise();
 
-      return unzippedFiles;
+      console.log("Export downloaded.");
+
+      closeClient();
+      return true;
     }
+
+    closeClient();
   } catch (err) {
     console.log(err);
   }

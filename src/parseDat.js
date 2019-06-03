@@ -1,64 +1,39 @@
-/*const fs = require("fs");
-const readline = require("readline");
-const getMemoryStats = require("./util/getMemoryStats");
-const createPrimaryKey = require("./util/createPrimaryKey");
-const parseLine = require("./util/parseLine");*/
-import fs from "fs-extra";
-import readline from "readline";
+import split from "split2";
+import through from "through2";
+import { parseLine } from "./util/parseLine";
+import { createPrimaryKey } from "./util/createPrimaryKey";
 
-const isWhitespaceOnly = /^\s*$/;
-
-export async function parseDat(filename, fields, tableName, knex, st, onChunk) {
+export async function parseDat(fileStream, fields, tableName, knex, st, onChunk) {
   return new Promise((resolve, reject) => {
+    const promises = [];
     let lines = [];
 
-    const lineReader = readline.createInterface({
-      input: fs.createReadStream(filename),
-    });
+    fileStream
+      .pipe(split())
+      .pipe(
+        through({ objectMode: true }, (line, enc, cb) => {
+          const str = enc === "buffer" ? line.toString("utf8") : line;
+          const parsedLine = parseLine(str, fields, knex, st);
+          cb(null, parsedLine);
+        }),
+      )
+      .on("data", (line) => {
+        lines.push(line);
 
-    let promises = [];
-
-    lineReader.on("line", async (line) => {
-      try {
-        if (!isWhitespaceOnly.test(line)) {
-          const parsedLine = parseLine(line, fields, knex, st);
-          lines.push(parsedLine);
-        }
-
-        if (lines.length >= 1000) {
-          lineReader.pause();
+        if (lines.length >= 100) {
           promises.push(onChunk(lines));
           lines = [];
-
-          const { available, used } = getMemoryStats();
-
-          // Wait and process chunks if we're using three fourths of the memory already
-          // OR we have 100 promises to await.
-          if ((available / 4) * 3 <= used) {
-            console.log(
-              `Processing ${promises.length} chunks of ${tableName}.`,
-            );
-
-            await Promise.all(promises);
-            promises = [];
-          }
-
-          lineReader.resume();
         }
-      } catch (error) {
-        reject(error);
-      }
-    });
+      })
+      .on("end", () => {
+        if (lines.length !== 0) {
+          promises.push(onChunk(lines));
+        }
 
-    lineReader.on("close", () => {
-      if (lines.length !== 0) {
-        promises.push(onChunk(lines));
-      }
-
-      Promise.all(promises)
-        .then(resolve)
-        .catch(reject);
-    });
+        Promise.all(promises)
+          .then(resolve)
+          .catch(reject);
+      });
   });
 }
 
@@ -66,7 +41,7 @@ export async function parseDat(filename, fields, tableName, knex, st, onChunk) {
 // The array of strings provided as "groupBy" defines the properties
 // that the rows should be grouped by.
 export async function parseDatInGroups(
-  filename,
+  fileStream,
   fields,
   groupBy,
   knex,
@@ -83,80 +58,60 @@ export async function parseDatInGroups(
     // The current key of the group. When this changes, the group is deemed complete.
     let currentGroupKey = "";
 
-    const lineReader = readline.createInterface({
-      input: fs.createReadStream(filename),
-    });
-
     // All promises currently going.
-    let promises = [];
+    const promises = [];
 
-    lineReader.on("line", async (line) => {
-      try {
-        // The group key of the current line
-        let groupKey = "";
-        let parsedLine = null;
+    fileStream
+      .pipe(split())
+      .pipe(
+        through({ objectMode: true }, (line, enc, cb) => {
+          const str = enc === "buffer" ? line.toString("utf8") : line;
+          const parsedLine = parseLine(str, fields, knex, st);
+          cb(null, parsedLine);
+        }),
+      )
+      .on("data", async (parsedLine) => {
+        const groupKey = createPrimaryKey(parsedLine, groupBy);
 
-        if (!isWhitespaceOnly.test(line)) {
-          parsedLine = parseLine(line, fields, knex, st);
-          groupKey = createPrimaryKey(parsedLine, groupBy);
+        // If the current group key is empty, that means that this is the first line.
+        if (currentGroupKey === "") {
+          currentGroupKey = groupKey;
+        }
 
-          // If the current group key is empty, that means that this is the first line.
-          if (currentGroupKey === "") {
-            currentGroupKey = groupKey;
-          }
+        // Add the line to the current group if the group key matches.
+        if (groupKey !== "" && groupKey === currentGroupKey) {
+          currentGroup.push(parsedLine);
+        } else if (groupKey !== "" && groupKey !== currentGroupKey) {
+          // If the key does not match, that means that this line is the start of the next
+          // group. Add the current group to the groups collection.
+          groups.push(currentGroup);
 
-          // Add the line to the current group if the group key matches.
-          if (groupKey !== "" && groupKey === currentGroupKey) {
-            currentGroup.push(parsedLine);
-          } else if (groupKey !== "" && groupKey !== currentGroupKey) {
-            // If the key does not match, that means that this line is the start of the next
-            // group. Add the current group to the groups collection.
-            groups.push(currentGroup);
+          // Start a new group by setting the new group key and resetting the group array.
+          // This line is already part of the new group so it should also be included.
+          currentGroupKey = groupKey;
+          currentGroup = [parsedLine];
 
-            // Start a new group by setting the new group key and resetting the group array.
-            // This line is already part of the new group so it should also be included.
-            currentGroupKey = groupKey;
-            currentGroup = [parsedLine];
-
-            // If the chuck size is large enough, send it to `onChunk`.
-            if (groups.length >= 100) {
-              lineReader.pause();
-
-              // Get a promise for the processing of the chunk and add it to the promises array.
-              promises.push(onChunk(groups));
-              // Reset the groups collection for the next chunk.
-              groups = [];
-
-              // Check the memory situation...
-              const { available, used } = getMemoryStats();
-
-              // Wait and process chunks if we're using three fourths of the memory already
-              if ((available / 4) * 3 <= used) {
-                await Promise.all(promises);
-                promises = [];
-              }
-
-              lineReader.resume();
-            }
+          // If the chuck size is large enough, send it to `onChunk`.
+          if (groups.length >= 100) {
+            // Get a promise for the processing of the chunk and add it to the promises array.
+            promises.push(onChunk(groups));
+            // Reset the groups collection for the next chunk.
+            groups = [];
           }
         }
-      } catch (error) {
-        reject(error);
-      }
-    });
+      })
+      .on("end", async () => {
+        if (currentGroup.length !== 0) {
+          groups.push(currentGroup);
+        }
 
-    lineReader.on("close", () => {
-      if (currentGroup.length !== 0) {
-        groups.push(currentGroup);
-      }
+        if (groups.length !== 0) {
+          promises.push(onChunk(groups));
+        }
 
-      if (groups.length !== 0) {
-        promises.push(onChunk(groups));
-      }
-
-      Promise.all(promises)
-        .then(resolve)
-        .catch(reject);
-    });
+        Promise.all(promises)
+          .then(resolve)
+          .catch(reject);
+      });
   });
 }
