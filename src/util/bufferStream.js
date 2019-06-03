@@ -23,7 +23,6 @@ export async function bufferStream(stream) {
         ),
       );
 
-      console.log(chunkLength);
       const fileBuffer = Buffer.concat(chunks);
 
       const streamBuffer = new ReadableStreamBuffer({

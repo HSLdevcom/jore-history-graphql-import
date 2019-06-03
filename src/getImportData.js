@@ -1,10 +1,9 @@
 import Client from "ftp-ts";
-import fs from "fs-extra";
 import { orderBy, get } from "lodash";
 import { getKnex } from "./knex";
-import path from "path";
 import { Parse } from "unzipper";
-import { preprocess } from "./preprocess";
+import path from "path";
+import fs from "fs-extra";
 
 const { knex } = getKnex();
 const cwd = process.cwd();
@@ -53,7 +52,7 @@ async function getFromFTP() {
   };
 }
 
-export async function getImportData(filesToDownload = [], onFileDownloaded) {
+export async function getImportData(filesToDownload = [], onFile) {
   try {
     const latestImported = await getLatestImportedFile();
     const ftp = await getFromFTP();
@@ -73,23 +72,37 @@ export async function getImportData(filesToDownload = [], onFileDownloaded) {
       // If the latest import is not in progress and failed
       (!latestImported.success && latestImported.import_end !== null)
     ) {
-      console.log(`Newest export is ${newestExportName}`);
-      const fileStream = await getFileStream();
+      await fs.ensureDir(path.join(cwd, "downloads"));
 
-      await fileStream
+      const downloadPath = path.join(cwd, "downloads", newestExportName);
+      const fileExists = await fs.pathExists(downloadPath);
+
+      if (!fileExists) {
+        await new Promise(async (resolve, reject) => {
+          const writeStream = fs.createWriteStream(downloadPath);
+          const fileStream = await getFileStream();
+          fileStream
+            .pipe(writeStream)
+            .on("finish", resolve)
+            .on("error", reject);
+        });
+
+        closeClient();
+      }
+
+      await fs
+        .createReadStream(downloadPath)
         .pipe(Parse())
         .on("entry", (entry) => {
           if (filesToDownload.includes(entry.path)) {
-            onFileDownloaded(entry.path, entry);
+            onFile(entry.path, entry);
+          } else {
+            entry.autodrain();
           }
-
-          entry.autodrain();
         })
         .promise();
 
       console.log("Export downloaded.");
-
-      closeClient();
       return true;
     }
 

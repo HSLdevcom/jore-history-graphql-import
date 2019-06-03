@@ -5,6 +5,7 @@ import { pick, compact } from "lodash";
 import { preprocess } from "./preprocess";
 import { getImportOrder, importSerialFiles, importParallelFiles } from "./importFile";
 import { bufferStream } from "./util/bufferStream";
+import through from "through2";
 
 const { knex } = getKnex();
 
@@ -49,7 +50,7 @@ const assignToImportGroup = async (filename, fileStream) => {
   }
 
   if (importGroups.parallel.includes(tableName)) {
-    parallelIndex[tableName] = preprocessed;
+    parallelIndex[tableName] = await bufferStream(preprocessed);
   }
 };
 
@@ -60,14 +61,12 @@ const assignToImportGroup = async (filename, fileStream) => {
   const importPromise = new Promise(async (resolve, reject) => {
     try {
       console.log("Downloading and unpacking import data...");
-
       const bufferPromises = [];
       const dataStream = await getImportData(
         selectedFiles.filter((name) => name !== "aikat.dat"),
         (name, file) => {
           const bufferPromise = assignToImportGroup(name, file);
           bufferPromises.push(bufferPromise);
-          return bufferPromise;
         },
       );
 
@@ -76,7 +75,7 @@ const assignToImportGroup = async (filename, fileStream) => {
         resolve();
       }
 
-      console.log("Buffering serial data...");
+      console.log("Buffering data...");
       await Promise.all(bufferPromises);
 
       console.log("Importing rows into database...");

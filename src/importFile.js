@@ -10,7 +10,22 @@ import { getKnex } from "./knex";
 
 const { knex, st } = getKnex();
 const SCHEMA = "jore";
-const queue = new PQueue({ concurrency: 1000 });
+const queue = new PQueue({ concurrency: 50 });
+
+// Import these serially and in this order
+const importSerial = ["stop_area", "terminal", "stop"];
+
+// These can be imported in parallel in any order
+const importParallel = [
+  "line",
+  "route",
+  "route_segment",
+  "departure",
+  "equipment",
+  "exception_days_calendar",
+  "exception_days",
+  "replacement_days_calendar",
+];
 
 function getIndexForTable(tableName) {
   const tableSchema = get(schema, tableName, false);
@@ -112,37 +127,13 @@ async function importGeometry(fileStream, trx) {
 }
 
 export function getImportOrder(selectedTables = []) {
-  // Import these serially and in this order
-  const importSerial = ["stop_area", "terminal", "stop"];
-
-  // These can be imported in parallel in any order
-  const importParallel = [
-    "line",
-    "route",
-    "route_segment",
-    "departure",
-    "equipment",
-    "exception_days_calendar",
-    "exception_days",
-    "replacement_days_calendar",
-  ];
-
   if (selectedTables.length === 0) {
     return { serial: importSerial, parallel: importParallel };
   }
 
-  return mapValues(
-    groupBy(
-      selectedTables,
-      (tableName) => (importSerial.includes(tableName) ? "serial" : "parallel"),
-    ),
-    (tableNames, group) => {
-      if (group === "serial") {
-        return orderBy(tableNames, (tableName) => importSerial.indexOf(tableName) + 1);
-      }
-
-      return orderBy(tableNames, (tableName) => importParallel.indexOf(tableName) + 1);
-    },
+  return groupBy(
+    selectedTables,
+    (tableName) => (importSerial.includes(tableName) ? "serial" : "parallel"),
   );
 }
 
@@ -155,13 +146,20 @@ function onImportError(err) {
 export async function importSerialFiles(serialFiles) {
   try {
     return knex.transaction(async (trx) => {
-      await pEachSeries(Object.entries(serialFiles), ([tableName, fileStream]) => {
-        if (fileStream) {
-          return importTable(tableName, fileStream, trx);
-        }
+      await pEachSeries(
+        orderBy(
+          Object.entries(serialFiles),
+          ([tableName]) => importSerial.indexOf(tableName) + 1,
+          "asc",
+        ),
+        ([tableName, fileStream]) => {
+          if (fileStream) {
+            return importTable(tableName, fileStream, trx);
+          }
 
-        return null;
-      });
+          return null;
+        },
+      );
     });
   } catch (err) {
     return onImportError(err);

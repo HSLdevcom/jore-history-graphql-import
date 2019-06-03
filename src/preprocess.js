@@ -34,7 +34,7 @@ function processLines(fileStream, name) {
         if (name === "reittimuoto.dat") {
           cb(null, geometryReplacer(str));
         } else {
-          cb(null, `${str}\n`);
+          cb(null, `${str.replace(/\(.*rows affected\)$/g, "")}\n`);
         }
       } else {
         cb();
