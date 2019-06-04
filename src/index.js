@@ -1,8 +1,8 @@
 import { getImportData } from "./getImportData";
 import { getKnex } from "./knex";
 import schema from "./schema";
-import { pick, compact, intersection, get } from "lodash";
-import { preprocess } from "./preprocess";
+import { pick, compact } from "lodash";
+import { handleFile } from "./handleFile";
 import { getImportOrder, importSerially, importInParallel } from "./importData";
 import fs from "fs-extra";
 import path from "path";
@@ -26,8 +26,6 @@ const selectedFiles = compact(selectedSchema.map(({ filename }) => filename)).fi
   (filename) => filename !== "aikat.dat",
 );
 
-const importGroups = getImportOrder(selectedTables) || { serial: [], parallel: [] };
-
 const getTableNameFromFileName = (filename) => {
   if (filename === "reittimuoto.dat") {
     return "geometry";
@@ -49,7 +47,7 @@ const preprocessAndSave = async (filename, fileStream) => {
     return;
   }
 
-  const preprocessed = preprocess(fileStream);
+  const preprocessed = handleFile(fileStream);
   const filePath = path.join(dataPath, filename);
 
   await new Promise((resolve, reject) => {
@@ -59,10 +57,7 @@ const preprocessAndSave = async (filename, fileStream) => {
       .on("error", reject);
   });
 
-  const index =
-    serialIndex && importGroups.serial.includes(tableName) ? serialIndex : parallelIndex;
-
-  index[tableName] = fs.createReadStream(filePath, { encoding: "utf8" });
+  parallelIndex[tableName] = fs.createReadStream(filePath, { encoding: "utf8" });
 };
 
 (async () => {
@@ -103,7 +98,6 @@ const preprocessAndSave = async (filename, fileStream) => {
 
       try {
         console.log("Importing rows into database...");
-        await importSerially(serialIndex);
         await importInParallel(parallelIndex);
         await fs.emptyDir(dataPath);
 

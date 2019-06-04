@@ -61,7 +61,7 @@ function processLines(fileStream, name) {
   let firstLine = true;
 
   return fileStream.pipe(split()).pipe(
-    through((chunk, enc, cb) => {
+    through({ objectMode: true }, (chunk, enc, cb) => {
       const str = enc === "buffer" ? chunk.toString("utf8") : chunk;
 
       if (str && !isWhitespaceOnly.test(str)) {
@@ -103,14 +103,18 @@ function processLines(fileStream, name) {
   );
 }
 
-export function preprocess(fileStream) {
-  const name = fileStream.path;
+export function handleFile() {
+  const fileHandler = through.obj((file, enc, cb) => {
+    const name = file.path;
+    console.log(`Re-encoding ${name} as UTF-8...`);
+    const recoded = file
+      .pipe(iconv.decodeStream("ISO-8859-1"))
+      .pipe(iconv.encodeStream("utf8"));
 
-  console.log(`Re-encoding ${name} as UTF-8...`);
-  const recoded = fileStream
-    .pipe(iconv.decodeStream("ISO-8859-1"))
-    .pipe(iconv.encodeStream("utf8"));
+    console.log(`Preprocessing ${name}...`);
+    const lineStream = processLines(recoded, name);
+    cb;
+  });
 
-  console.log(`Preprocessing ${name}...`);
-  return processLines(recoded, name);
+  return fileHandler;
 }

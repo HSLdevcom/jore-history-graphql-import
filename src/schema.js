@@ -71,14 +71,12 @@ module.exports = {
         length: 7,
         name: "terminal_id",
         type: "string",
-        index: true,
         foreign: "terminal.terminal_id",
       },
       {
         length: 6,
         name: "stop_area_id",
         type: "string",
-        index: true,
         foreign: "stop_area.stop_area_id",
       },
       {

@@ -1,7 +1,6 @@
 import { upsert } from "./util/upsert";
 import schema from "./schema";
-import { pick, orderBy, get, uniq, groupBy } from "lodash";
-import pEachSeries from "p-each-series";
+import { pick, orderBy, get, uniq } from "lodash";
 import { getPrimaryConstraint } from "./util/getPrimaryConstraint";
 import PQueue from "p-queue";
 import { getKnex } from "./knex";
@@ -13,21 +12,6 @@ import { createPrimaryKey } from "./util/createPrimaryKey";
 const { knex, st } = getKnex();
 const SCHEMA = "jore";
 const queue = new PQueue({ concurrency: 50 });
-
-// Import these serially and in this order
-const importSerial = ["stop_area", "terminal", "stop"];
-
-// These can be imported in parallel in any order
-const importParallel = [
-  "line",
-  "route",
-  "route_segment",
-  "departure",
-  "equipment",
-  "exception_days_calendar",
-  "exception_days",
-  "replacement_days_calendar",
-];
 
 export async function parseFile(fileStream, fields, tableName, onChunk) {
   return new Promise((resolve, reject) => {
@@ -247,42 +231,10 @@ async function importGeometry(fileStream) {
   });
 }
 
-export function getImportOrder(selectedTables = []) {
-  if (selectedTables.length === 0) {
-    return { serial: importSerial, parallel: importParallel };
-  }
-
-  return groupBy(
-    selectedTables,
-    (tableName) => (importSerial.includes(tableName) ? "serial" : "parallel"),
-  );
-}
-
 function onImportError(err) {
   console.error(err);
   console.log("Import failed");
   throw err;
-}
-
-export async function importSerially(serialFiles) {
-  try {
-    return pEachSeries(
-      orderBy(
-        Object.entries(serialFiles),
-        ([tableName]) => importSerial.indexOf(tableName) + 1,
-        "asc",
-      ),
-      ([tableName, fileStream]) => {
-        if (fileStream) {
-          return importTable(tableName, fileStream);
-        }
-
-        return null;
-      },
-    );
-  } catch (err) {
-    return onImportError(err);
-  }
 }
 
 export async function importInParallel(parallelFiles) {

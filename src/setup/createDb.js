@@ -77,14 +77,15 @@ async function createForeignKeys(schema, config, knex) {
       if (primary) {
         table.unique(primary).primary(primary);
       }
-      fields.forEach(({ name, type, foreign }) => {
+
+      /*fields.forEach(({ name, type, foreign }) => {
         if (name && type && foreign) {
           table
             .foreign(name)
             .references(foreign.split(".")[1])
             .inTable(`jore.${foreign.split(".")[0]}`);
         }
-      });
+      });*/
     });
   });
 }
