@@ -46,56 +46,49 @@ async function getFromFTP() {
 }
 
 export async function getImportData(filesToDownload = [], onFile) {
-  try {
-    const latestImported = await getLatestImportedFile();
-    const ftp = await getFromFTP();
+  const latestImported = await getLatestImportedFile();
+  const ftp = await getFromFTP();
 
-    if (!ftp) {
-      return null;
+  if (!ftp) {
+    return null;
+  }
+
+  const { newestExportName, download, closeClient } = ftp;
+
+  if (!newestExportName) {
+    return null;
+  }
+
+  if (
+    !latestImported ||
+    newestExportName !== get(latestImported, "filename") ||
+    // If the latest import is not in progress and failed
+    (!latestImported.success && latestImported.import_end !== null)
+  ) {
+    await fs.ensureDir(path.join(cwd, "downloads"));
+
+    const downloadPath = path.join(cwd, "downloads", newestExportName);
+    const fileExists = await fs.pathExists(downloadPath);
+
+    if (!fileExists) {
+      const writeStream = fs.createWriteStream(downloadPath);
+      await download(writeStream);
+      closeClient();
     }
 
-    const { newestExportName, download, closeClient } = ftp;
+    await fs
+      .createReadStream(downloadPath)
+      .pipe(Parse())
+      .on("entry", (entry) => {
+        if (filesToDownload.includes(entry.path)) {
+          return onFile(entry.path, entry);
+        }
 
-    if (!newestExportName) {
-      return null;
-    }
+        return entry.autodrain();
+      })
+      .promise();
 
-    if (
-      newestExportName !== latestImported ||
-      // If the latest import is not in progress and failed
-      (!latestImported.success && latestImported.import_end !== null)
-    ) {
-      await fs.ensureDir(path.join(cwd, "downloads"));
-
-      const downloadPath = path.join(cwd, "downloads", newestExportName);
-      const fileExists = await fs.pathExists(downloadPath);
-
-      if (!fileExists) {
-        const writeStream = fs.createWriteStream(downloadPath);
-        await download(writeStream);
-        closeClient();
-      }
-
-      await fs
-        .createReadStream(downloadPath)
-        .pipe(Parse())
-        .pipe(
-          through((entry, enc, cb) => {
-            if (filesToDownload.includes(entry.path)) {
-              onFile(entry.path, entry);
-              cb(null, entry);
-            } else {
-              cb(null, entry.autodrain());
-            }
-          }),
-        )
-        .promise();
-
-      console.log("Export downloaded.");
-      return true;
-    }
-  } catch (err) {
-    console.log(err);
+    return newestExportName;
   }
 
   return null;

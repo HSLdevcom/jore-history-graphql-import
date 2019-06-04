@@ -14,6 +14,23 @@ export async function getLatestImportedFile() {
 }
 
 export const startImport = async (filename) => {
+  const hasRecord = await knex
+    .withSchema(schema)
+    .first("filename")
+    .from(statusTable)
+    .where({ filename });
+
+  if (hasRecord) {
+    return knex
+      .withSchema(schema)
+      .from(statusTable)
+      .where({ filename })
+      .update({
+        import_end: null,
+        success: false,
+      });
+  }
+
   return knex
     .withSchema(schema)
     .insert({

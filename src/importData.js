@@ -51,14 +51,18 @@ export async function parseFile(fileStream, fields, tableName, onChunk) {
           lines = [];
         }
       })
-      .on("end", () => {
+      .on("end", async () => {
         if (lines.length !== 0) {
           promises.push(onChunk(lines));
         }
 
-        Promise.all(promises)
-          .then(resolve)
-          .catch(reject);
+        try {
+          await Promise.all(promises);
+          fileStream.close();
+          resolve();
+        } catch (err) {
+          reject(err);
+        }
       });
   });
 }
@@ -133,9 +137,13 @@ export async function parseFileInGroups(
           promises.push(onChunk(groups));
         }
 
-        Promise.all(promises)
-          .then(resolve)
-          .catch(reject);
+        try {
+          await Promise.all(promises);
+          fileStream.close();
+          resolve();
+        } catch (err) {
+          reject(err);
+        }
       });
   });
 }

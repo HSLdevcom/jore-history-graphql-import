@@ -1,11 +1,12 @@
 import { getImportData } from "./getImportData";
 import { getKnex } from "./knex";
 import schema from "./schema";
-import { pick, compact, intersection } from "lodash";
+import { pick, compact, intersection, get } from "lodash";
 import { preprocess } from "./preprocess";
 import { getImportOrder, importSerially, importInParallel } from "./importData";
 import fs from "fs-extra";
 import path from "path";
+import { startImport, importCompleted } from "./importStatus";
 
 const { knex } = getKnex();
 const cwd = process.cwd();
@@ -41,7 +42,7 @@ const getTableNameFromFileName = (filename) => {
 const serialIndex = {};
 const parallelIndex = {};
 
-const preprocessAndAssignToImportGroup = async (filename, fileStream) => {
+const preprocessAndSave = async (filename, fileStream) => {
   const tableName = getTableNameFromFileName(filename);
 
   if (!tableName) {
@@ -64,68 +65,60 @@ const preprocessAndAssignToImportGroup = async (filename, fileStream) => {
   index[tableName] = fs.createReadStream(filePath, { encoding: "utf8" });
 };
 
-const assignExistingFileToImportGroup = async (filename) => {
-  const tableName = getTableNameFromFileName(filename);
-
-  if (!tableName) {
-    return;
-  }
-
-  const filePath = path.join(dataPath, filename);
-
-  const index =
-    serialIndex && importGroups.serial.includes(tableName) ? serialIndex : parallelIndex;
-
-  index[tableName] = fs.createReadStream(filePath, { encoding: "utf8" });
-};
-
 (async () => {
-  console.log("Initializing DB...");
-  await knex.migrate.latest();
+  try {
+    console.log("Initializing DB...");
+    await knex.migrate.latest();
 
-  const importPromise = new Promise(async (resolve, reject) => {
-    try {
+    const importPromise = new Promise(async (resolve, reject) => {
       console.log("Downloading and unpacking import data...");
+      let exportName = null;
 
-      await fs.ensureDir(dataPath);
-      const dataFiles = await fs.readdir(dataPath);
-
-      const bufferPromises = [];
-
-      if (intersection(selectedFiles, dataFiles).length !== selectedFiles.length) {
+      try {
         await fs.emptyDir(dataPath);
-        const dataStream = await getImportData(selectedFiles, (name, file) => {
-          const bufferPromise = preprocessAndAssignToImportGroup(name, file);
+        const bufferPromises = [];
+
+        exportName = await getImportData(selectedFiles, (name, file) => {
+          const bufferPromise = preprocessAndSave(name, file);
           bufferPromises.push(bufferPromise);
+          return file;
         });
 
-        if (!dataStream) {
-          console.log("Nothing to import.");
-          resolve();
+        if (bufferPromises.length !== 0) {
+          console.log("Buffering files...");
+          await Promise.all(bufferPromises);
         }
-      } else {
-        console.log("Data files found. Using existing data files for import.");
-        intersection(selectedFiles, dataFiles).forEach((filename) => {
-          const bufferPromise = assignExistingFileToImportGroup(filename);
-          bufferPromises.push(bufferPromise);
-        });
+      } catch (err) {
+        reject(err);
+        return;
       }
 
-      console.log("Buffering files...");
-      await Promise.all(bufferPromises);
+      if (!exportName) {
+        console.log("Nothing to import.");
+        resolve();
+        return;
+      }
 
-      console.log("Importing rows into database...");
-      await importSerially(serialIndex);
-      await importInParallel(parallelIndex);
+      await startImport(exportName);
 
-      resolve(fs.emptyDir(dataPath));
-    } catch (err) {
-      reject(err);
-    }
-  });
+      try {
+        console.log("Importing rows into database...");
+        await importSerially(serialIndex);
+        await importInParallel(parallelIndex);
+        await fs.emptyDir(dataPath);
 
-  await importPromise;
+        resolve(importCompleted(exportName, true));
+      } catch (err) {
+        await importCompleted(exportName, false);
+        reject(err);
+      }
+    });
 
-  console.log("Ok, all done.");
-  process.exit(0);
+    await importPromise;
+
+    console.log("Ok, all done.");
+    process.exit(0);
+  } catch (err) {
+    process.exit(1);
+  }
 })();
