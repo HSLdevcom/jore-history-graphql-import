@@ -85,7 +85,7 @@ async function importGeometry(fileStream, trx) {
     queue.add(() => {
       console.log(`Importing ${groups.length} geometry lines to ${tableName}`);
 
-      // Convert the groups of points into geography objects
+      // Convert the groups of points into geometry objects
       const geometryItems = groups.map((group) => {
         // All objects have the primary keys in common
         const geometryData = pick(group[0], primaryKeys);
@@ -143,9 +143,9 @@ function onImportError(err) {
 }
 
 export async function importSerialFiles(serialFiles) {
-  try {
-    return knex.transaction(async (trx) => {
-      await pEachSeries(
+  return knex.transaction(async (trx) => {
+    try {
+      return pEachSeries(
         orderBy(
           Object.entries(serialFiles),
           ([tableName]) => importSerial.indexOf(tableName) + 1,
@@ -159,15 +159,15 @@ export async function importSerialFiles(serialFiles) {
           return null;
         },
       );
-    });
-  } catch (err) {
-    return onImportError(err);
-  }
+    } catch (err) {
+      return onImportError(err);
+    }
+  });
 }
 
 export async function importParallelFiles(parallelFiles) {
-  try {
-    return knex.transaction(async (trx) => {
+  return knex.transaction(async (trx) => {
+    try {
       const ops = Object.entries(parallelFiles).map(([tableName, fileStream]) => {
         if (!fileStream) {
           return Promise.resolve(null);
@@ -184,8 +184,8 @@ export async function importParallelFiles(parallelFiles) {
       });
 
       return Promise.all(ops);
-    });
-  } catch (err) {
-    return onImportError(err);
-  }
+    } catch (err) {
+      return onImportError(err);
+    }
+  });
 }

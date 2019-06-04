@@ -1,12 +1,16 @@
 import { getImportData } from "./getImportData";
 import { getKnex } from "./knex";
 import schema from "./schema";
-import { pick, compact } from "lodash";
+import { pick, compact, intersection } from "lodash";
 import { preprocess } from "./preprocess";
 import { getImportOrder, importSerialFiles, importParallelFiles } from "./importFile";
 import { bufferStream } from "./util/bufferStream";
+import fs from "fs-extra";
+import path from "path";
 
 const { knex } = getKnex();
+const cwd = process.cwd();
+const dataPath = path.join(cwd, "data");
 
 const [...selectedTableNames] = process.argv.slice(2);
 
@@ -51,6 +55,24 @@ const assignToImportGroup = async (filename, fileStream) => {
   if (importGroups.parallel.includes(tableName)) {
     parallelIndex[tableName] = bufferStream(preprocessed, false);
   }
+
+  await fs.writeFile(path.join(dataPath, filename), preprocessed);
+};
+
+const assignExistingFileToImportGroup = async (filename, fileStream) => {
+  const tableName = getTableNameFromFileName(filename);
+
+  if (!tableName) {
+    return;
+  }
+
+  if (serialIndex && importGroups.serial.includes(tableName)) {
+    serialIndex[tableName] = await bufferStream(fileStream);
+  }
+
+  if (importGroups.parallel.includes(tableName)) {
+    parallelIndex[tableName] = bufferStream(fileStream, false);
+  }
 };
 
 (async () => {
@@ -60,18 +82,34 @@ const assignToImportGroup = async (filename, fileStream) => {
   const importPromise = new Promise(async (resolve, reject) => {
     try {
       console.log("Downloading and unpacking import data...");
+
+      await fs.ensureDir(dataPath);
+      const dataFiles = await fs.readdir(dataPath);
+
+      console.log(dataFiles);
+      process.exit(0);
+
       const bufferPromises = [];
-      const dataStream = await getImportData(
-        selectedFiles.filter((name) => name !== "aikat.dat"),
-        (name, file) => {
+      const allSelectedFiles = selectedFiles.filter((name) => name !== "aikat.dat");
+
+      if (intersection(allSelectedFiles, dataFiles).length !== allSelectedFiles.length) {
+        await fs.emptyDir(dataPath);
+        const dataStream = await getImportData(allSelectedFiles, (name, file) => {
           const bufferPromise = assignToImportGroup(name, file);
           bufferPromises.push(bufferPromise);
-        },
-      );
+        });
 
-      if (!dataStream) {
-        console.log("Nothing to import.");
-        resolve();
+        if (!dataStream) {
+          console.log("Nothing to import.");
+          resolve();
+        }
+      } else {
+        dataFiles.forEach((filename) => {
+          const filepath = path.join(dataPath, filename);
+          const readStream = fs.createReadStream(filepath);
+          const bufferPromise = assignExistingFileToImportGroup(filename, readStream);
+          bufferPromises.push(bufferPromise);
+        });
       }
 
       console.log("Buffering data...");
@@ -79,7 +117,9 @@ const assignToImportGroup = async (filename, fileStream) => {
 
       console.log("Importing rows into database...");
       await importSerialFiles(serialIndex);
-      resolve(importParallelFiles(parallelIndex));
+      await importParallelFiles(parallelIndex);
+
+      resolve(fs.emptyDir(dataPath));
     } catch (err) {
       reject(err);
     }
