@@ -1,11 +1,11 @@
 import { Client } from "basic-ftp";
 import { orderBy, get } from "lodash";
-import { getKnex } from "./knex";
 import { Parse } from "unzipper";
 import path from "path";
 import fs from "fs-extra";
+import through from "through2";
+import { getLatestImportedFile } from "./importStatus";
 
-const { knex } = getKnex();
 const cwd = process.cwd();
 
 const {
@@ -15,15 +15,6 @@ const {
   FTP_PORT = "21",
   FTP_EXPORTS_DIR_PATH = "/",
 } = process.env;
-
-async function getLatestImportedFile() {
-  return knex
-    .withSchema("jore")
-    .first()
-    .from("import_status")
-    .orderBy("import_start", "desc")
-    .limit(1);
-}
 
 async function getFromFTP() {
   if (!FTP_PASSWORD || !FTP_USERNAME || !FTP_HOST) {
@@ -88,20 +79,21 @@ export async function getImportData(filesToDownload = [], onFile) {
       await fs
         .createReadStream(downloadPath)
         .pipe(Parse())
-        .on("entry", (entry) => {
-          if (filesToDownload.includes(entry.path)) {
-            onFile(entry.path, entry);
-          } else {
-            entry.autodrain();
-          }
-        })
+        .pipe(
+          through((entry, enc, cb) => {
+            if (filesToDownload.includes(entry.path)) {
+              onFile(entry.path, entry);
+              cb(null, entry);
+            } else {
+              cb(null, entry.autodrain());
+            }
+          }),
+        )
         .promise();
 
       console.log("Export downloaded.");
       return true;
     }
-
-    closeClient();
   } catch (err) {
     console.log(err);
   }

@@ -9,7 +9,8 @@ function replaceLinebreaks() {
   let lines = [];
 
   return (line, lineLength) => {
-    lines = [...lines, line];
+    lines.push(line);
+
     const currentLength = lines.join("\n").length;
     let output = "";
 
@@ -38,12 +39,12 @@ function replaceGeometryIndexes() {
     const indexPadded = `${"0".repeat(4 - index.toString().length)}${index}`;
     const lineIndexed = `${line.substr(0, 32)}${indexPadded}${line.slice(36)}`;
 
-    if (line !== lineIndexed) {
+    /*if (line !== lineIndexed) {
       console.log(`Replaced invalid geometry index: ${lineId}`);
-    }
+    }*/
 
     previous = lineId;
-    return `${lineIndexed}\n`;
+    return lineIndexed;
   };
 }
 
@@ -56,18 +57,21 @@ function processLines(fileStream, name) {
   const lineBreaksReplacer = replaceLinebreaks();
 
   const filters = flow(removeRowsAffectedJunk);
-
   let maxLength = 0;
+  let firstLine = true;
 
   return fileStream.pipe(split()).pipe(
     through((chunk, enc, cb) => {
       const str = enc === "buffer" ? chunk.toString("utf8") : chunk;
 
-      if (str.length > maxLength) {
-        maxLength = str.length;
-      }
+      if (str && !isWhitespaceOnly.test(str)) {
+        if (str.length > maxLength) {
+          maxLength = str.length;
+        }
 
-      if (!isWhitespaceOnly.test(str)) {
+        if (firstLine) {
+          console.log(`Replacing line breaks on ${name}...`);
+        }
         const linebreaksReplacedStr = lineBreaksReplacer(str, maxLength);
 
         if (!linebreaksReplacedStr) {
@@ -75,14 +79,22 @@ function processLines(fileStream, name) {
           return;
         }
 
+        if (firstLine) {
+          console.log(`Filtering data in ${name}...`);
+        }
+
         const filteredString = filters(linebreaksReplacedStr);
 
         if (name === "reittimuoto.dat") {
+          if (firstLine) {
+            console.log(`Fixing geometry indices on ${name}...`);
+          }
           cb(null, geometryReplacer(filteredString));
         } else {
           cb(null, filteredString);
         }
 
+        firstLine = false;
         return;
       }
 
@@ -94,9 +106,11 @@ function processLines(fileStream, name) {
 export function preprocess(fileStream) {
   const name = fileStream.path;
 
+  console.log(`Re-encoding ${name} as UTF-8...`);
   const recoded = fileStream
     .pipe(iconv.decodeStream("ISO-8859-1"))
     .pipe(iconv.encodeStream("utf8"));
 
+  console.log(`Preprocessing ${name}...`);
   return processLines(recoded, name);
 }
