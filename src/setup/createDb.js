@@ -1,16 +1,11 @@
-import { find, compact } from "lodash";
-import { getKnex } from "../knex";
-import pMap from "p-map";
+const { find, compact } = require("lodash");
+const pMap = require("p-map");
 
-const { knex } = getKnex();
-
-export async function createTables(schema, config) {
+async function createTables(schema, config, knex) {
   const createdTables = await pMap(
     Object.entries(config),
     async ([tableName, { fields }]) => {
-      const tableExists = await knex.schema
-        .withSchema(schema)
-        .hasTable(tableName);
+      const tableExists = await knex.schema.withSchema(schema).hasTable(tableName);
 
       if (tableExists) {
         return "";
@@ -76,7 +71,7 @@ export async function createTables(schema, config) {
   return compact(createdTables);
 }
 
-export async function createForeignKeys(schema, config) {
+async function createForeignKeys(schema, config, knex) {
   return pMap(Object.entries(config), ([tableName, { fields, primary }]) => {
     return knex.schema.withSchema(schema).table(tableName, (table) => {
       if (primary) {
@@ -93,3 +88,8 @@ export async function createForeignKeys(schema, config) {
     });
   });
 }
+
+module.exports = {
+  createTables,
+  createForeignKeys,
+};

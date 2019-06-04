@@ -1,4 +1,4 @@
-import Client from "ftp-ts";
+import { Client } from "basic-ftp";
 import { orderBy, get } from "lodash";
 import { getKnex } from "./knex";
 import { Parse } from "unzipper";
@@ -30,7 +30,9 @@ async function getFromFTP() {
     return null;
   }
 
-  const client = await Client.connect({
+  const client = new Client();
+
+  await client.access({
     host: FTP_HOST,
     user: FTP_USERNAME,
     password: FTP_PASSWORD,
@@ -38,7 +40,7 @@ async function getFromFTP() {
     secure: false,
   });
 
-  await client.cwd(FTP_EXPORTS_DIR_PATH);
+  await client.cd(FTP_EXPORTS_DIR_PATH);
   const files = await client.list();
 
   const zips = files.filter(({ name }) => name.endsWith(".zip"));
@@ -47,8 +49,8 @@ async function getFromFTP() {
 
   return {
     newestExportName: newestFileName,
-    getFileStream: () => client.get(newestFileName),
-    closeClient: () => client.end(),
+    download: (writeStream) => client.download(writeStream, newestFileName),
+    closeClient: () => client.close(),
   };
 }
 
@@ -61,7 +63,7 @@ export async function getImportData(filesToDownload = [], onFile) {
       return null;
     }
 
-    const { newestExportName, getFileStream, closeClient } = ftp;
+    const { newestExportName, download, closeClient } = ftp;
 
     if (!newestExportName) {
       return null;
@@ -78,15 +80,8 @@ export async function getImportData(filesToDownload = [], onFile) {
       const fileExists = await fs.pathExists(downloadPath);
 
       if (!fileExists) {
-        await new Promise(async (resolve, reject) => {
-          const writeStream = fs.createWriteStream(downloadPath);
-          const fileStream = await getFileStream();
-          fileStream
-            .pipe(writeStream)
-            .on("finish", resolve)
-            .on("error", reject);
-        });
-
+        const writeStream = fs.createWriteStream(downloadPath);
+        await download(writeStream);
         closeClient();
       }
 

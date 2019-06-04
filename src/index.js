@@ -5,7 +5,6 @@ import { pick, compact } from "lodash";
 import { preprocess } from "./preprocess";
 import { getImportOrder, importSerialFiles, importParallelFiles } from "./importFile";
 import { bufferStream } from "./util/bufferStream";
-import through from "through2";
 
 const { knex } = getKnex();
 
@@ -50,7 +49,7 @@ const assignToImportGroup = async (filename, fileStream) => {
   }
 
   if (importGroups.parallel.includes(tableName)) {
-    parallelIndex[tableName] = await bufferStream(preprocessed);
+    parallelIndex[tableName] = bufferStream(preprocessed, false);
   }
 };
 

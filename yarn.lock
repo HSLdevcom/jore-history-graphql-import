@@ -249,6 +249,11 @@ base@^0.11.1:
     mixin-deep "^1.2.0"
     pascalcase "^0.1.1"
 
+basic-ftp@^3.5.0:
+  version "3.5.0"
+  resolved "https://registry.yarnpkg.com/basic-ftp/-/basic-ftp-3.5.0.tgz#b2af388961038c575f9de7666a93c4aad5ee387e"
+  integrity sha512-6c7bH9+mdkQy8fWNrF5GRsWfKU3QjEFzSCbqnrKtwyMIIh56wbcWodE9c+Z2Va4iRVlqFpR0e7bkaHghk1Sd1w==
+
 big-integer@^1.6.17:
   version "1.6.43"
   resolved "https://registry.yarnpkg.com/big-integer/-/big-integer-1.6.43.tgz#8ac15bf13e93e509500859061233e19d8d0d99d1"
@@ -1055,11 +1060,6 @@ ftp-srv@^4.1.0:
     moment "^2.22.1"
     uuid "^3.2.1"
     yargs "^11.0.0"
-
-ftp-ts@^1.0.19:
-  version "1.0.19"
-  resolved "https://registry.yarnpkg.com/ftp-ts/-/ftp-ts-1.0.19.tgz#7f2e8bfa2b09020fa9e4282d88c252fa69dcbffe"
-  integrity sha512-ESULf9zK6K+/q2TR8otApBgc/6QO6q2LHN9qanHy7/GHQx3Z58dQdUeLocC4fqhe74p8kxTMYDqlJakMj4gE+Q==
 
 function-bind@^1.1.0, function-bind@^1.1.1:
   version "1.1.1"

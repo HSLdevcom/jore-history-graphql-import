@@ -1,8 +1,7 @@
-import path from "path";
 import { upsert } from "./util/upsert";
 import { parseDat, parseDatInGroups } from "./parseDat";
 import schema from "./schema";
-import { pick, orderBy, get, uniq, groupBy, mapValues } from "lodash";
+import { pick, orderBy, get, uniq, groupBy } from "lodash";
 import pEachSeries from "p-each-series";
 import { getPrimaryConstraint } from "./util/getPrimaryConstraint";
 import PQueue from "p-queue";

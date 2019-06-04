@@ -1,4 +1,4 @@
-import { initDb } from "../src/initDb";
+const initDb = require("../src/setup/initDb");
 
 exports.up = async function(knex) {
   return initDb(knex);

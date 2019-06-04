@@ -1,4 +1,4 @@
-const schema = {
+module.exports = {
   stop: {
     filename: "pysakki.dat",
     fields: [
@@ -852,5 +852,3 @@ const schema = {
     ],
   },
 };
-
-export default schema;
