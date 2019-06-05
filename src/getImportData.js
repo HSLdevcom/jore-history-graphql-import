@@ -5,7 +5,7 @@ import path from "path";
 import fs from "fs-extra";
 import through from "through2";
 import { getLatestImportedFile } from "./importStatus";
-import { handleFile } from "./handleFile";
+import { processArchive } from "./processArchive";
 
 const cwd = process.cwd();
 
@@ -46,7 +46,7 @@ async function getFromFTP() {
   };
 }
 
-export async function getImportData(filesToDownload = [], onLine) {
+export async function getImportData() {
   const latestImported = await getLatestImportedFile();
   const ftp = await getFromFTP();
 
@@ -76,19 +76,6 @@ export async function getImportData(filesToDownload = [], onLine) {
       await download(writeStream);
       closeClient();
     }
-
-    await fs
-      .createReadStream(downloadPath)
-      .pipe(Parse())
-      .pipe(through({objectMode: true}, (entry, enc, cb) => {
-        if (filesToDownload.includes(entry.path)) {
-          cb(null, entry)
-        } else {
-          entry.autodrain();
-          cb()
-        }
-      }))
-      .pipe(handleFile())
 
     return newestExportName;
   }

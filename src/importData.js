@@ -2,54 +2,19 @@ import { upsert } from "./util/upsert";
 import schema from "./schema";
 import { pick, orderBy, get, uniq } from "lodash";
 import { getPrimaryConstraint } from "./util/getPrimaryConstraint";
-import PQueue from "p-queue";
 import { getKnex } from "./knex";
 import split from "split2";
+import throughConcurrent from "through2-concurrent";
 import through from "through2";
 import { parseLine } from "./util/parseLine";
 import { createPrimaryKey } from "./util/createPrimaryKey";
+import branch from "branch-pipe";
+import throughFilter from "through2-filter";
+import etl from "etl";
+import PQueue from "p-queue";
 
 const { knex, st } = getKnex();
 const SCHEMA = "jore";
-const queue = new PQueue({ concurrency: 50 });
-
-export async function parseFile(fileStream, fields, tableName, onChunk) {
-  return new Promise((resolve, reject) => {
-    const promises = [];
-    let lines = [];
-
-    fileStream
-      .pipe(split())
-      .pipe(
-        through({ objectMode: true }, (line, enc, cb) => {
-          const str = enc === "buffer" ? line.toString("utf8") : line;
-          const parsedLine = parseLine(str, fields, knex, st);
-          cb(null, parsedLine);
-        }),
-      )
-      .on("data", (line) => {
-        lines.push(line);
-
-        if (lines.length >= 500) {
-          promises.push(onChunk(lines));
-          lines = [];
-        }
-      })
-      .on("end", async () => {
-        if (lines.length !== 0) {
-          promises.push(onChunk(lines));
-        }
-
-        try {
-          await Promise.all(promises);
-          fileStream.close();
-          resolve();
-        } catch (err) {
-          reject(err);
-        }
-      });
-  });
-}
 
 // A version of parseDat where the rows should be grouped by keys.
 // The array of strings provided as "groupBy" defines the properties
@@ -76,7 +41,7 @@ export async function parseFileInGroups(
     fileStream
       .pipe(split())
       .pipe(
-        through({ objectMode: true }, (line, enc, cb) => {
+        through.obj((line, enc, cb) => {
           const str = enc === "buffer" ? line.toString("utf8") : line;
           const parsedLine = parseLine(str, fields, knex, st);
           cb(null, parsedLine);
@@ -155,80 +120,77 @@ function getIndexForTable(tableName) {
   return uniq([...indices, ...compoundPrimary]);
 }
 
-// Import a table from a corresponding .dat file
-async function importTable(tableName, fileStream) {
+const createImportStreamForTable = async (tableName, queue) => {
   const primaryKeys = getIndexForTable(tableName);
   // Get the primary constraint for the table
   const constraint = await getPrimaryConstraint(knex, tableName, SCHEMA);
 
-  return knex.transaction(async (trx) => {
-    const onChunk = (lines) =>
-      queue.add(() => {
-        console.log(`Importing ${lines.length} lines to ${tableName}`);
+  return throughFilter
+    .obj((tableLine) => tableLine && tableName === tableLine.tableName)
+    .pipe(etl.collect(1000))
+    .pipe(etl.inspect())
+    .pipe(
+      through.obj((importGroup, enc, cb) => {
+        const queuePromise = queue.add(() => {
+          const lines = [importGroup.line];
+          return knex.transaction((trx) => {
+            console.log(`Importing ${lines.length} lines to ${tableName}`);
 
-        return upsert({
-          knex,
-          schema: SCHEMA,
-          trx,
-          tableName,
-          itemData: lines,
-          indices: primaryKeys,
-          constraint,
+            return upsert({
+              knex,
+              schema: SCHEMA,
+              trx,
+              tableName,
+              itemData: lines,
+              indices: primaryKeys,
+              constraint,
+            });
+          });
         });
-      });
 
-    return parseFile(fileStream, schema[tableName].fields, tableName, onChunk);
-  });
-}
+        cb(null, queuePromise);
+      }),
+    );
+};
 
 // Import the geometry data from the point_geometry data with conversion
-async function importGeometry(fileStream) {
+async function importGeometry() {
   const tableName = "geometry";
   const primaryKeys = getIndexForTable(tableName);
   const constraint = await getPrimaryConstraint(knex, tableName, SCHEMA);
 
-  return knex.transaction(async (trx) => {
-    const onChunk = (groups) =>
-      queue.add(() => {
-        console.log(`Importing ${groups.length} geometry lines to ${tableName}`);
+  return async (groups) =>
+    knex.transaction((trx) => {
+      console.log(`Importing ${groups.length} geometry lines to ${tableName}`);
 
-        // Convert the groups of points into geometry objects
-        const geometryItems = groups.map((group) => {
-          // All objects have the primary keys in common
-          const geometryData = pick(group[0], primaryKeys);
+      // Convert the groups of points into geometry objects
+      const geometryItems = groups.map((group) => {
+        // All objects have the primary keys in common
+        const geometryData = pick(group[0], primaryKeys);
 
-          // Extract the points of the group
-          const points = orderBy(group, "index", "ASC").map(({ point }) => point);
+        // Extract the points of the group
+        const points = orderBy(group, "index", "ASC").map(({ point }) => point);
 
-          // Return a geometry object with a geometric line created with PostGIS.
-          return {
-            ...geometryData,
-            geom: knex.raw(
-              `ST_MakeLine(ARRAY[${points.map(() => "?").join(",")}])`,
-              points,
-            ),
-          };
-        });
-
-        return upsert({
-          knex,
-          schema: SCHEMA,
-          trx,
-          tableName,
-          itemData: geometryItems,
-          indices: primaryKeys,
-          constraint,
-        });
+        // Return a geometry object with a geometric line created with PostGIS.
+        return {
+          ...geometryData,
+          geom: knex.raw(
+            `ST_MakeLine(ARRAY[${points.map(() => "?").join(",")}])`,
+            points,
+          ),
+        };
       });
 
-    return parseFileInGroups(
-      fileStream,
-      schema.point_geometry.fields,
-      primaryKeys,
-      tableName,
-      onChunk,
-    );
-  });
+      return upsert({
+        knex,
+        schema: SCHEMA,
+        trx,
+        tableName,
+        itemData: geometryItems,
+        indices: primaryKeys,
+        constraint,
+      });
+    });
 }
 
 function onImportError(err) {
@@ -237,25 +199,47 @@ function onImportError(err) {
   throw err;
 }
 
-export async function importInParallel(parallelFiles) {
-  try {
-    const ops = Object.entries(parallelFiles).map(([tableName, fileStream]) => {
-      if (!fileStream) {
-        return Promise.resolve(null);
-      }
+export async function importStream(selectedTables, lineStream) {
+  const tableStreams = [];
+  const queue = new PQueue({ concurrency: 30 });
 
-      if (tableName === "geometry") {
-        // Special treatment for the geometry data, since it is reading from
-        // point_geometry, converting those into geometry groups and inserting
-        // into the geometry table.
-        return importGeometry(fileStream);
-      }
-
-      return importTable(tableName, fileStream);
-    });
-
-    return Promise.all(ops);
-  } catch (err) {
-    return onImportError(err);
+  for (const tableName of selectedTables) {
+    if (tableName !== "geometry") {
+      const tableImportStream = await createImportStreamForTable(tableName, queue);
+      tableStreams.push(tableImportStream);
+    }
   }
+
+  return new Promise((resolve, reject) => {
+    lineStream
+      .pipe(
+        throughConcurrent.obj({ maxConcurrency: 50 }, (lineObj, enc, cb) => {
+          const { tableName, line } = lineObj;
+          let parsedLine = null;
+
+          try {
+            const { fields } = schema[tableName];
+            parsedLine = parseLine(line, fields);
+          } catch (err) {
+            cb(err);
+            return;
+          }
+
+          if (parsedLine) {
+            cb(null, { tableName, line: parsedLine });
+          } else {
+            cb();
+          }
+        }),
+      )
+      .pipe(
+        branch({ objectMode: true }, (stream) =>
+          tableStreams.map((ts) => stream.pipe(ts)),
+        ),
+      )
+      .on("end", () => {
+        resolve(queue.onEmpty());
+      })
+      .on("error", reject);
+  });
 }
