@@ -259,6 +259,13 @@ basic-ftp@^3.5.0:
   resolved "https://registry.yarnpkg.com/basic-ftp/-/basic-ftp-3.5.0.tgz#b2af388961038c575f9de7666a93c4aad5ee387e"
   integrity sha512-6c7bH9+mdkQy8fWNrF5GRsWfKU3QjEFzSCbqnrKtwyMIIh56wbcWodE9c+Z2Va4iRVlqFpR0e7bkaHghk1Sd1w==
 
+batch2@^1.0.4:
+  version "1.0.4"
+  resolved "https://registry.yarnpkg.com/batch2/-/batch2-1.0.4.tgz#1165a6fdec6cac6370eee15aef4f9b19ba23f769"
+  integrity sha512-aGdCPntLKlRpj8oco3U7fbLyuT/YC62qVrnvohJWjGFfLYTfZK0TebGA62FeYA3MREP5IQeNMQxqGkWS3d8srw==
+  dependencies:
+    through2 "^3.0.1"
+
 big-integer@^1.6.17:
   version "1.6.43"
   resolved "https://registry.yarnpkg.com/big-integer/-/big-integer-1.6.43.tgz#8ac15bf13e93e509500859061233e19d8d0d99d1"
@@ -2239,6 +2246,11 @@ punycode@^2.1.0:
   version "2.1.1"
   resolved "https://registry.yarnpkg.com/punycode/-/punycode-2.1.1.tgz#b58b010ac40c22c5657616c8d2c2c02c7bf479ec"
 
+pure-stream@^1.3.0:
+  version "1.3.0"
+  resolved "https://registry.yarnpkg.com/pure-stream/-/pure-stream-1.3.0.tgz#3a51ec67795383ea6d4def7f48bc9578e20d69c9"
+  integrity sha512-xaluWZ3Gx8O3WS7/CK+XxPhfTFby6qLA5e+IFLPasY02F6AskEzxqkD6Td7Pd2eCPIYrhMv/Delc4P3nrHO5mQ==
+
 read-pkg-up@^2.0.0:
   version "2.0.0"
   resolved "https://registry.yarnpkg.com/read-pkg-up/-/read-pkg-up-2.0.0.tgz#6b72a8048984e0c41e79510fd5e9fa99b3b549be"
@@ -2590,6 +2602,11 @@ stream-combiner@^0.2.2:
     duplexer "~0.1.1"
     through "~2.3.4"
 
+stream-fork@^1.0.2:
+  version "1.0.2"
+  resolved "https://registry.yarnpkg.com/stream-fork/-/stream-fork-1.0.2.tgz#a12ab4204b308738ae8f666762760d77234a6805"
+  integrity sha512-zZoaSfYbVWtCLfTv6N2uimZne9Eh5IQQ++t/1+dZ3WUJzepHPIDdXoHxx2rSXhTRHseBrtdrDXhcEyHZMtCCSg==
+
 stream-shift@^1.0.0:
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/stream-shift/-/stream-shift-1.0.0.tgz#d5c752825e5367e786f78e18e445ea223a155952"
@@ -2725,14 +2742,6 @@ through2-concurrent@^2.0.0:
   integrity sha512-R5/jLkfMvdmDD+seLwN7vB+mhbqzWop5fAjx5IX8/yQq7VhBhzDmhXgaHAOnhnWkCpRMM7gToYHycB0CS/pd+A==
   dependencies:
     through2 "^2.0.0"
-
-through2-filter@^3.0.0:
-  version "3.0.0"
-  resolved "https://registry.yarnpkg.com/through2-filter/-/through2-filter-3.0.0.tgz#700e786df2367c2c88cd8aa5be4cf9c1e7831254"
-  integrity sha512-jaRjI2WxN3W1V8/FMZ9HKIBXixtiqs3SQSX4/YGIiP3gL6djW48VoZq9tDqeCWs3MT8YY5wb/zli8VW8snY1CA==
-  dependencies:
-    through2 "~2.0.0"
-    xtend "~4.0.0"
 
 through2-spy@^2.0.0:
   version "2.0.0"

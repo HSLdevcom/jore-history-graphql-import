@@ -5,6 +5,10 @@ const { knex, st } = getKnex();
 
 // Parses a line into something that can be imported into the database.
 export function parseLine(line, fields) {
+  if (!line) {
+    return null;
+  }
+
   const values = {};
   let index = 1;
 

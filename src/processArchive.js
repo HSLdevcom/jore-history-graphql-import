@@ -1,5 +1,5 @@
 import iconv from "iconv-lite";
-import through from "through2-concurrent";
+import through from "through2";
 import split from "split2";
 import { Parse } from "unzipper";
 import { PassThrough } from "stream";
@@ -60,13 +60,13 @@ function replaceGeometryIndexes() {
   };
 }
 
-function processLines(name) {
+function processLines(tableName) {
   const geometryReplacer = replaceGeometryIndexes();
   const lineBreaksReplacer = replaceLinebreaks();
 
   let maxLength = 0;
 
-  return through.obj({ maxConcurrency: 100 }, function createLine(chunk, enc, cb) {
+  return through.obj(function createLine(chunk, enc, cb) {
     const str = enc === "buffer" ? chunk.toString("utf8") : chunk;
 
     if (str && !isWhitespaceOnly.test(str)) {
@@ -79,11 +79,11 @@ function processLines(name) {
       if (linebreaksReplacedStr) {
         let resultLine = linebreaksReplacedStr;
 
-        if (name === "reittimuoto.dat") {
+        if (tableName === "geometry") {
           resultLine = geometryReplacer(linebreaksReplacedStr);
         }
 
-        this.push({ tableName: getTableNameFromFileName(name), line: resultLine });
+        this.push({ tableName, line: resultLine });
       }
     }
 
@@ -97,22 +97,29 @@ export function processArchive(archiveStream, filesToDownload = []) {
   archiveStream
     .pipe(Parse())
     .pipe(
-      through.obj({ maxConcurrency: 10 }, (entry, enc, cb) => {
+      through.obj((entry, enc, cb) => {
         if (filesToDownload.includes(entry.path)) {
+          const tableName = getTableNameFromFileName(entry.path);
+
           entry
             .pipe(iconv.decodeStream("ISO-8859-1"))
             .pipe(iconv.encodeStream("utf8"))
             .pipe(split())
-            .pipe(processLines(entry.path))
-            .on("data", (line) => returnStream.push(line));
+            .pipe(processLines(tableName))
+            .on("data", (line) => returnStream.push(line))
+            .on("finish", () => {
+              returnStream.push({ tableName, line: null });
+              cb();
+            })
+            .on("error", (err) => cb(err));
         } else {
           entry.autodrain();
+          cb();
         }
-
-        cb();
       }),
     )
-    .on("end", () => returnStream.end());
+    .on("finish", () => returnStream.end())
+    .on("error", (err) => returnStream.destroy(err));
 
   return returnStream;
 }

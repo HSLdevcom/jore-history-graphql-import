@@ -4,15 +4,12 @@ import { pick, orderBy, get, uniq } from "lodash";
 import { getPrimaryConstraint } from "./util/getPrimaryConstraint";
 import { getKnex } from "./knex";
 import split from "split2";
-import throughConcurrent from "through2-concurrent";
 import through from "through2";
 import { parseLine } from "./util/parseLine";
 import { createPrimaryKey } from "./util/createPrimaryKey";
 import branch from "branch-pipe";
-import throughFilter from "through2-filter";
-import throughBatch from "through2-batch";
 import PQueue from "p-queue";
-import cloneable from "cloneable-readable";
+import { map, collect } from "etl";
 
 const { knex, st } = getKnex();
 const SCHEMA = "jore";
@@ -121,27 +118,22 @@ function getIndexForTable(tableName) {
   return uniq([...indices, ...compoundPrimary]);
 }
 
-const createImportStreamForTable = async (tableName) => {
+const createImportStreamForTable = async (tableName, queue) => {
   const primaryKeys = getIndexForTable(tableName);
   // Get the primary constraint for the table
   const constraint = await getPrimaryConstraint(knex, tableName, SCHEMA);
 
-  return through
-    .obj(function streamFilter(tableLine, enc, cb) {
-      if (tableLine && tableLine.tableName === tableName) {
-        this.push(tableLine);
-      }
+  const chunkImportStream = collect(1000, 1000);
 
-      cb();
-    })
-    .pipe(
-      throughBatch.obj({ batchSize: 100 }, (batch, enc, cb) => {
-        const itemData = batch.map(({ data }) => data);
+  chunkImportStream.pipe(
+    map((batch) => {
+      const itemData = batch.map(({ data }) => data);
 
-        const queuePromise = knex.transaction(async (trx) => {
+      queue.add(() =>
+        knex.transaction((trx) => {
           console.log(`Importing ${itemData.length} lines to ${tableName}`);
 
-          await upsert({
+          return upsert({
             knex,
             schema: SCHEMA,
             trx,
@@ -150,11 +142,12 @@ const createImportStreamForTable = async (tableName) => {
             indices: primaryKeys,
             constraint,
           });
-        });
+        }),
+      );
+    }),
+  );
 
-        cb(null, queuePromise);
-      }),
-    );
+  return chunkImportStream;
 };
 
 // Import the geometry data from the point_geometry data with conversion
@@ -204,51 +197,45 @@ function onImportError(err) {
 }
 
 export async function importStream(selectedTables, lineStream) {
-  const tableStreams = [];
-  const queue = new PQueue({ concurrency: 30, autoStart: true });
+  const tableStreams = {};
+  const queue = new PQueue({ concurrency: 30 });
 
   for (const tableName of selectedTables) {
     if (tableName !== "geometry") {
-      const tableImportStream = await createImportStreamForTable(tableName);
-      tableStreams.push(tableImportStream);
+      tableStreams[tableName] = await createImportStreamForTable(tableName, queue);
     }
   }
 
   return new Promise((resolve, reject) => {
     lineStream
       .pipe(
-        throughConcurrent.obj({ maxConcurrency: 50 }, (lineObj, enc, cb) => {
+        through.obj((lineObj, enc, cb) => {
           const { tableName, line } = lineObj;
           let parsedLine = null;
+          const { fields } = schema[tableName];
+          const stream = tableStreams[tableName];
 
-          try {
-            const { fields } = schema[tableName];
-            parsedLine = parseLine(line, fields);
-          } catch (err) {
-            cb(err);
-            return;
+          if (line === null && stream) {
+            console.log(`Ending ${tableName} stream...`);
+            stream.end();
+            tableStreams[tableName] = null;
+          } else if (stream) {
+            try {
+              parsedLine = parseLine(line, fields);
+              tableStreams[tableName].write({ tableName, data: parsedLine || null });
+            } catch (err) {
+              cb(err);
+              return;
+            }
           }
 
-          if (parsedLine) {
-            cb(null, { tableName, data: parsedLine });
-          } else {
-            cb();
-          }
+          cb();
         }),
       )
-      .pipe(
-        tableStreams[0],
-        /* branch({ objectMode: true }, (stream) => {
-          const streamClone = cloneable(stream).clone();
-          return tableStreams.map((ts) => streamClone.pipe(ts));
-        }),*/
-      )
-      .on("data", (promise) => {
-        queue.add(() => promise);
-      })
-      .on("end", () => {
-        console.log("stream end");
-        resolve(queue.onEmpty());
+      .on("finish", () => {
+        setTimeout(() => {
+          resolve(queue.onEmpty());
+        }, 1000);
       })
       .on("error", reject);
   });

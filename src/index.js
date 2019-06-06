@@ -49,7 +49,7 @@ const selectedFiles = compact(selectedSchema.map(({ filename }) => filename)).fi
     console.log("Unpacking and processing import data...");
     const lineStream = processArchive(archiveStream, selectedFiles);
 
-    // Importing data...
+    console.log("Importing data...");
     await importStream(selectedTables, lineStream);
     // await importCompleted(exportName, true);
 
