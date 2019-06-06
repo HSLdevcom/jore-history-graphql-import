@@ -6,7 +6,8 @@ import { processArchive } from "./processArchive";
 import fs from "fs-extra";
 import path from "path";
 import { startImport, importCompleted } from "./importStatus";
-import { importStream } from "./importData";
+import { createImportStream } from "./importData";
+import PQueue from "p-queue";
 
 const { knex } = getKnex();
 const cwd = process.cwd();
@@ -43,15 +44,21 @@ const selectedFiles = compact(selectedSchema.map(({ filename }) => filename)).fi
 
     // await startImport(exportName);
 
-    const archivePath = path.join(cwd, "downloads", exportName);
-    const archiveStream = fs.createReadStream(archivePath);
+    await new Promise(async (resolve, reject) => {
+      const archivePath = path.join(cwd, "downloads", exportName);
 
-    console.log("Unpacking and processing import data...");
-    const lineStream = processArchive(archiveStream, selectedFiles);
+      const queue = new PQueue({ concurrency: 30 });
+      const importerStream = await createImportStream(selectedTables, queue);
 
-    console.log("Importing data...");
-    await importStream(selectedTables, lineStream);
-    // await importCompleted(exportName, true);
+      processArchive(fs.createReadStream(archivePath), selectedFiles)
+        .pipe(importerStream)
+        .on("finish", () => {
+          setTimeout(() => {
+            resolve(queue.onEmpty());
+          }, 1000);
+        })
+        .on("error", reject);
+    });
 
     console.log("Ok, all done.");
     process.exit(0);

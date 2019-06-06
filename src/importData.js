@@ -5,9 +5,9 @@ import { getPrimaryConstraint } from "./util/getPrimaryConstraint";
 import { getKnex } from "./knex";
 import split from "split2";
 import through from "through2";
+import throughConcurrent from "through2-concurrent";
 import { parseLine } from "./util/parseLine";
 import { createPrimaryKey } from "./util/createPrimaryKey";
-import branch from "branch-pipe";
 import PQueue from "p-queue";
 import { map, collect } from "etl";
 
@@ -196,9 +196,8 @@ function onImportError(err) {
   throw err;
 }
 
-export async function importStream(selectedTables, lineStream) {
+export async function createImportStream(selectedTables, queue) {
   const tableStreams = {};
-  const queue = new PQueue({ concurrency: 30 });
 
   for (const tableName of selectedTables) {
     if (tableName !== "geometry") {
@@ -206,37 +205,27 @@ export async function importStream(selectedTables, lineStream) {
     }
   }
 
-  return new Promise((resolve, reject) => {
-    lineStream
-      .pipe(
-        through.obj((lineObj, enc, cb) => {
-          const { tableName, line } = lineObj;
-          let parsedLine = null;
-          const { fields } = schema[tableName];
-          const stream = tableStreams[tableName];
+  return through.obj((lineObj, enc, cb) => {
+    const { tableName, line } = lineObj;
+    let parsedLine = null;
 
-          if (line === null && stream) {
-            console.log(`Ending ${tableName} stream...`);
-            stream.end();
-            tableStreams[tableName] = null;
-          } else if (stream) {
-            try {
-              parsedLine = parseLine(line, fields);
-              tableStreams[tableName].write({ tableName, data: parsedLine || null });
-            } catch (err) {
-              cb(err);
-              return;
-            }
-          }
+    const { fields } = schema[tableName] || {};
+    const stream = tableStreams[tableName];
 
-          cb();
-        }),
-      )
-      .on("finish", () => {
-        setTimeout(() => {
-          resolve(queue.onEmpty());
-        }, 1000);
-      })
-      .on("error", reject);
+    if (line === null && stream) {
+      console.log(`Ending ${tableName} stream...`);
+      stream.end();
+      tableStreams[tableName] = null;
+    } else if (stream && fields) {
+      try {
+        parsedLine = parseLine(line, fields);
+        tableStreams[tableName].write({ tableName, data: parsedLine || null });
+      } catch (err) {
+        cb(err);
+        return;
+      }
+    }
+
+    cb();
   });
 }
