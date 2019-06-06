@@ -453,6 +453,14 @@ cliui@^4.0.0:
     strip-ansi "^4.0.0"
     wrap-ansi "^2.0.0"
 
+cloneable-readable@^2.0.1:
+  version "2.0.1"
+  resolved "https://registry.yarnpkg.com/cloneable-readable/-/cloneable-readable-2.0.1.tgz#fc2240beddbe5621b872acad8104dcc86574e225"
+  integrity sha512-1ke/wckhpSevGPQzKb+qGHMsuFrSUKQlsKh0PTmscmfAzw8MgONqrg5a0e0Un1YO/cOSS4wAepfXSGus5RoonQ==
+  dependencies:
+    inherits "^2.0.1"
+    readable-stream "^3.3.0"
+
 code-point-at@^1.0.0:
   version "1.1.0"
   resolved "https://registry.yarnpkg.com/code-point-at/-/code-point-at-1.1.0.tgz#0d070b4d043a5bea33a2f1a40e2edb3d9a4ccf77"
@@ -2246,7 +2254,7 @@ read-pkg@^2.0.0:
     normalize-package-data "^2.3.2"
     path-type "^2.0.0"
 
-"readable-stream@2 || 3", readable-stream@^3.0.0:
+"readable-stream@2 || 3", readable-stream@^3.0.0, readable-stream@^3.3.0:
   version "3.4.0"
   resolved "https://registry.yarnpkg.com/readable-stream/-/readable-stream-3.4.0.tgz#a51c26754658e0a3c21dbf59163bd45ba6f447fc"
   integrity sha512-jItXPLmrSR8jmTRmRWJXCnGJsfy85mB3Wd/uINMXA65yrnFo0cPClFIUWzo2najVNSl+mx7/4W8ttlLWJe99pQ==
@@ -2703,6 +2711,13 @@ tarn@^1.1.4:
 text-table@^0.2.0:
   version "0.2.0"
   resolved "https://registry.yarnpkg.com/text-table/-/text-table-0.2.0.tgz#7f5ee823ae805207c00af2df4a84ec3fcfa570b4"
+
+through2-batch@^1.1.1:
+  version "1.1.1"
+  resolved "https://registry.yarnpkg.com/through2-batch/-/through2-batch-1.1.1.tgz#599c545fd89a0815c35c870cc4b59d3cbbb8c74c"
+  integrity sha512-Bk7j+HUH8y6hhEY7v1wU9hxH0nA+akaTJZj1/xUulgU5EqlaPBdk/LBy8scOjDipMXVEEm/R8sv/w95SV8OiRQ==
+  dependencies:
+    through2 "^2.0.0"
 
 through2-concurrent@^2.0.0:
   version "2.0.0"

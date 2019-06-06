@@ -10,8 +10,9 @@ import { parseLine } from "./util/parseLine";
 import { createPrimaryKey } from "./util/createPrimaryKey";
 import branch from "branch-pipe";
 import throughFilter from "through2-filter";
-import etl from "etl";
+import throughBatch from "through2-batch";
 import PQueue from "p-queue";
+import cloneable from "cloneable-readable";
 
 const { knex, st } = getKnex();
 const SCHEMA = "jore";
@@ -120,31 +121,34 @@ function getIndexForTable(tableName) {
   return uniq([...indices, ...compoundPrimary]);
 }
 
-const createImportStreamForTable = async (tableName, queue) => {
+const createImportStreamForTable = async (tableName) => {
   const primaryKeys = getIndexForTable(tableName);
   // Get the primary constraint for the table
   const constraint = await getPrimaryConstraint(knex, tableName, SCHEMA);
 
-  return throughFilter
-    .obj((tableLine) => tableLine && tableName === tableLine.tableName)
-    .pipe(etl.collect(1000))
-    .pipe(etl.inspect())
-    .pipe(
-      through.obj((importGroup, enc, cb) => {
-        const queuePromise = queue.add(() => {
-          const lines = [importGroup.line];
-          return knex.transaction((trx) => {
-            console.log(`Importing ${lines.length} lines to ${tableName}`);
+  return through
+    .obj(function streamFilter(tableLine, enc, cb) {
+      if (tableLine && tableLine.tableName === tableName) {
+        this.push(tableLine);
+      }
 
-            return upsert({
-              knex,
-              schema: SCHEMA,
-              trx,
-              tableName,
-              itemData: lines,
-              indices: primaryKeys,
-              constraint,
-            });
+      cb();
+    })
+    .pipe(
+      throughBatch.obj({ batchSize: 100 }, (batch, enc, cb) => {
+        const itemData = batch.map(({ data }) => data);
+
+        const queuePromise = knex.transaction(async (trx) => {
+          console.log(`Importing ${itemData.length} lines to ${tableName}`);
+
+          await upsert({
+            knex,
+            schema: SCHEMA,
+            trx,
+            tableName,
+            itemData,
+            indices: primaryKeys,
+            constraint,
           });
         });
 
@@ -201,11 +205,11 @@ function onImportError(err) {
 
 export async function importStream(selectedTables, lineStream) {
   const tableStreams = [];
-  const queue = new PQueue({ concurrency: 30 });
+  const queue = new PQueue({ concurrency: 30, autoStart: true });
 
   for (const tableName of selectedTables) {
     if (tableName !== "geometry") {
-      const tableImportStream = await createImportStreamForTable(tableName, queue);
+      const tableImportStream = await createImportStreamForTable(tableName);
       tableStreams.push(tableImportStream);
     }
   }
@@ -226,18 +230,24 @@ export async function importStream(selectedTables, lineStream) {
           }
 
           if (parsedLine) {
-            cb(null, { tableName, line: parsedLine });
+            cb(null, { tableName, data: parsedLine });
           } else {
             cb();
           }
         }),
       )
       .pipe(
-        branch({ objectMode: true }, (stream) =>
-          tableStreams.map((ts) => stream.pipe(ts)),
-        ),
+        tableStreams[0],
+        /* branch({ objectMode: true }, (stream) => {
+          const streamClone = cloneable(stream).clone();
+          return tableStreams.map((ts) => streamClone.pipe(ts));
+        }),*/
       )
+      .on("data", (promise) => {
+        queue.add(() => promise);
+      })
       .on("end", () => {
+        console.log("stream end");
         resolve(queue.onEmpty());
       })
       .on("error", reject);
