@@ -13,7 +13,8 @@ CREATE TABLE IF NOT EXISTS jore.import_status
     filename     VARCHAR(255) PRIMARY KEY,
     import_start TIMESTAMP NOT NULL DEFAULT now(),
     import_end   TIMESTAMP,
-    success      BOOLEAN            DEFAULT FALSE
+    success      BOOLEAN            DEFAULT FALSE,
+    duration     INTEGER DEFAULT 0
 );
 
 CREATE SCHEMA IF NOT EXISTS transitlog;

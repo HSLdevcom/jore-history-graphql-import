@@ -13,6 +13,7 @@
     "import/order": "off",
     "sort-imports": "off",
     "no-await-in-loop": "off",
+    "no-use-before-define": "off",
     "no-plusplus": "off",
     "no-param-reassign": "off",
     "import/prefer-default-export": "off",

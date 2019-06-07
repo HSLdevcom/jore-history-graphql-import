@@ -1,11 +1,8 @@
-import { Client } from "basic-ftp";
+import { Client } from "basic-ftp/dist/index";
 import { orderBy, get } from "lodash";
-import { Parse } from "unzipper";
 import path from "path";
 import fs from "fs-extra";
-import through from "through2";
-import { getLatestImportedFile } from "./importStatus";
-import { processArchive } from "./processArchive";
+import { getLatestImportedFile } from "../importStatus";
 
 const cwd = process.cwd();
 
@@ -14,14 +11,15 @@ const {
   FTP_PASSWORD = "",
   FTP_HOST = "",
   FTP_PORT = "21",
-  FTP_EXPORTS_DIR_PATH = "/",
+  FTP_PATH = "/",
 } = process.env;
 
-async function getFromFTP() {
+export async function fetchExportFromFTP() {
   if (!FTP_PASSWORD || !FTP_USERNAME || !FTP_HOST) {
     return null;
   }
 
+  const latestImported = await getLatestImportedFile();
   const client = new Client();
 
   await client.access({
@@ -32,52 +30,47 @@ async function getFromFTP() {
     secure: false,
   });
 
-  await client.cd(FTP_EXPORTS_DIR_PATH);
+  await client.cd(FTP_PATH);
   const files = await client.list();
 
   const zips = files.filter(({ name }) => name.endsWith(".zip"));
   const newestFile = orderBy(zips, "name", "desc")[0];
-  const newestFileName = get(newestFile, "name", "");
-
-  return {
-    newestExportName: newestFileName,
-    download: (writeStream) => client.download(writeStream, newestFileName),
-    closeClient: () => client.close(),
-  };
-}
-
-export async function getImportData() {
-  const latestImported = await getLatestImportedFile();
-  const ftp = await getFromFTP();
-
-  if (!ftp) {
-    return null;
-  }
-
-  const { newestExportName, download, closeClient } = ftp;
+  const newestExportName = get(newestFile, "name", "");
 
   if (!newestExportName) {
     return null;
   }
 
+  console.log(`Newest export is ${newestExportName}`);
+  console.log(`Latest imported export is ${get(latestImported, "filename")}`);
+
+  // If there is no record of a previously improted file, or if the previously
+  // imported file is different than the latest or if the previous import failed
+  // => download and import the archive.
   if (
     !latestImported ||
     newestExportName !== get(latestImported, "filename") ||
-    // If the latest import is not in progress and failed
     (!latestImported.success && latestImported.import_end !== null)
   ) {
+    // The archive will be downloaded to `downloads`.
     await fs.ensureDir(path.join(cwd, "downloads"));
 
     const downloadPath = path.join(cwd, "downloads", newestExportName);
     const fileExists = await fs.pathExists(downloadPath);
 
+    // Download it if it doesn't already exist. It may exist if the import
+    // failed previously.
     if (!fileExists) {
+      console.log(`Downloading ${newestExportName}`);
       const writeStream = fs.createWriteStream(downloadPath);
-      await download(writeStream);
-      closeClient();
+      await client.download(writeStream, newestExportName);
+      client.close();
+    } else {
+      console.log(`Export ${newestExportName} already downloaded.`);
     }
 
-    return newestExportName;
+    const fileStream = fs.createReadStream(downloadPath);
+    return { file: fileStream, name: newestExportName };
   }
 
   return null;

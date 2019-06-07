@@ -3,96 +3,53 @@ import schema from "./schema";
 import { pick, orderBy, get, uniq } from "lodash";
 import { getPrimaryConstraint } from "./util/getPrimaryConstraint";
 import { getKnex } from "./knex";
-import split from "split2";
 import through from "through2";
-import throughConcurrent from "through2-concurrent";
 import { parseLine } from "./util/parseLine";
 import { createPrimaryKey } from "./util/createPrimaryKey";
-import PQueue from "p-queue";
 import { map, collect } from "etl";
 
-const { knex, st } = getKnex();
+const { knex } = getKnex();
 const SCHEMA = "jore";
 
-// A version of parseDat where the rows should be grouped by keys.
-// The array of strings provided as "groupBy" defines the properties
-// that the rows should be grouped by.
-export async function parseFileInGroups(
-  fileStream,
-  fields,
-  groupKeys,
-  tableName,
-  onChunk,
-) {
-  return new Promise((resolve, reject) => {
-    // All groups in a chunk. Will be reset when a chunk is sent to the db.
-    let groups = [];
+// Creates a function that groups lines by the `groupKeys` argument.
+// When the returned function is called with a line, it is either assigned
+// to the current group or it becomes the start of a new group. When a group
+// is concluded it is returned, otherwise undefined is returned.
+export function createLineGrouper(fields, groupKeys) {
+  // The current group of lines. Will be pushed onto `groups` when completed.
+  let currentGroup = [];
+  // The current key of the group. When this changes, the group is deemed complete.
+  let currentGroupKey = "";
 
-    // The current group of lines. Will be pushed onto `groups` when completed.
-    let currentGroup = [];
-    // The current key of the group. When this changes, the group is deemed complete.
-    let currentGroupKey = "";
+  return (line) => {
+    if (!line) {
+      return currentGroup.length !== 0 ? currentGroup : undefined;
+    }
 
-    // All promises currently going.
-    const promises = [];
+    const groupKey = createPrimaryKey(line, groupKeys);
+    let returnValue;
 
-    fileStream
-      .pipe(split())
-      .pipe(
-        through.obj((line, enc, cb) => {
-          const str = enc === "buffer" ? line.toString("utf8") : line;
-          const parsedLine = parseLine(str, fields, knex, st);
-          cb(null, parsedLine);
-        }),
-      )
-      .on("data", async (parsedLine) => {
-        const groupKey = createPrimaryKey(parsedLine, groupKeys);
+    // If the current group key is empty, that means that this is the first line.
+    if (currentGroupKey === "") {
+      currentGroupKey = groupKey;
+    }
 
-        // If the current group key is empty, that means that this is the first line.
-        if (currentGroupKey === "") {
-          currentGroupKey = groupKey;
-        }
+    // Add the line to the current group if the group key matches.
+    if (groupKey !== "" && groupKey === currentGroupKey) {
+      currentGroup.push(line);
+    } else if (groupKey !== "" && groupKey !== currentGroupKey) {
+      // If the key does not match, that means that this line is the start of the next
+      // group. Return the current group.
+      returnValue = [...currentGroup]; // Clone the group
 
-        // Add the line to the current group if the group key matches.
-        if (groupKey !== "" && groupKey === currentGroupKey) {
-          currentGroup.push(parsedLine);
-        } else if (groupKey !== "" && groupKey !== currentGroupKey) {
-          // If the key does not match, that means that this line is the start of the next
-          // group. Add the current group to the groups collection.
-          groups.push(currentGroup);
+      // Start a new group by setting the new group key and resetting the group array.
+      // This line is already part of the new group so it should also be included.
+      currentGroupKey = groupKey;
+      currentGroup = [line];
+    }
 
-          // Start a new group by setting the new group key and resetting the group array.
-          // This line is already part of the new group so it should also be included.
-          currentGroupKey = groupKey;
-          currentGroup = [parsedLine];
-
-          // If the chuck size is large enough, send it to `onChunk`.
-          if (groups.length >= 1000) {
-            // Get a promise for the processing of the chunk and add it to the promises array.
-            promises.push(onChunk(groups));
-            // Reset the groups collection for the next chunk.
-            groups = [];
-          }
-        }
-      })
-      .on("end", async () => {
-        if (currentGroup.length !== 0) {
-          groups.push(currentGroup);
-        }
-
-        if (groups.length !== 0) {
-          promises.push(onChunk(groups));
-        }
-
-        try {
-          await Promise.all(promises);
-          fileStream.close();
-          resolve();
-        } catch (err) {
-          reject(err);
-        }
-      });
-  });
+    return returnValue;
+  };
 }
 
 function getIndexForTable(tableName) {
@@ -118,114 +75,122 @@ function getIndexForTable(tableName) {
   return uniq([...indices, ...compoundPrimary]);
 }
 
-const createImportStreamForTable = async (tableName, queue) => {
-  const primaryKeys = getIndexForTable(tableName);
-  // Get the primary constraint for the table
-  const constraint = await getPrimaryConstraint(knex, tableName, SCHEMA);
-
-  const chunkImportStream = collect(1000, 1000);
-
-  chunkImportStream.pipe(
-    map((batch) => {
-      const itemData = batch.map(({ data }) => data);
-
-      queue.add(() =>
-        knex.transaction((trx) => {
-          console.log(`Importing ${itemData.length} lines to ${tableName}`);
-
-          return upsert({
-            knex,
-            schema: SCHEMA,
-            trx,
-            tableName,
-            itemData,
-            indices: primaryKeys,
-            constraint,
-          });
-        }),
-      );
-    }),
-  );
-
-  return chunkImportStream;
-};
-
-// Import the geometry data from the point_geometry data with conversion
-async function importGeometry() {
-  const tableName = "geometry";
-  const primaryKeys = getIndexForTable(tableName);
-  const constraint = await getPrimaryConstraint(knex, tableName, SCHEMA);
-
-  return async (groups) =>
+const createQueuedQuery = (queue, itemData, tableName, primaryKeys, constraint) => {
+  return queue.add(() =>
     knex.transaction((trx) => {
-      console.log(`Importing ${groups.length} geometry lines to ${tableName}`);
-
-      // Convert the groups of points into geometry objects
-      const geometryItems = groups.map((group) => {
-        // All objects have the primary keys in common
-        const geometryData = pick(group[0], primaryKeys);
-
-        // Extract the points of the group
-        const points = orderBy(group, "index", "ASC").map(({ point }) => point);
-
-        // Return a geometry object with a geometric line created with PostGIS.
-        return {
-          ...geometryData,
-          geom: knex.raw(
-            `ST_MakeLine(ARRAY[${points.map(() => "?").join(",")}])`,
-            points,
-          ),
-        };
-      });
+      console.log(`Importing ${itemData.length} lines to ${tableName}`);
 
       return upsert({
         knex,
         schema: SCHEMA,
         trx,
         tableName,
-        itemData: geometryItems,
+        itemData,
         indices: primaryKeys,
         constraint,
       });
-    });
+    }),
+  );
+};
+
+const createImportStreamForTable = async (tableName, queue) => {
+  const primaryKeys = getIndexForTable(tableName);
+  // Get the primary constraint for the table
+  const constraint = await getPrimaryConstraint(knex, tableName, SCHEMA);
+
+  // Collect 1000 items and pass them forward as a chunk.
+  // A chunk is emitted in a 500ms interval, so items
+  // need to arrive within this time to be included.
+  const chunkImportStream = collect(1000, 500);
+
+  chunkImportStream.pipe(
+    map((itemData) =>
+      createQueuedQuery(queue, itemData, tableName, primaryKeys, constraint),
+    ),
+  );
+
+  return chunkImportStream;
+};
+
+function createGeometryObjects(groups, primaryKeys) {
+  return groups.map((group) => {
+    // All objects have the primary keys in common
+    const geometryData = pick(group[0], primaryKeys);
+
+    // Extract the points of the group
+    const points = orderBy(group, "index", "ASC").map(({ point }) => point);
+
+    // Return a geometry object with a geometric line created with PostGIS.
+    return {
+      ...geometryData,
+      geom: knex.raw(`ST_MakeLine(ARRAY[${points.map(() => "?").join(",")}])`, points),
+    };
+  });
 }
 
-function onImportError(err) {
-  console.error(err);
-  console.log("Import failed");
-  throw err;
+// Import the geometry data from the point_geometry data with conversion
+async function createImportStreamForGeometryTable(queue) {
+  const tableName = "geometry";
+  const primaryKeys = getIndexForTable(tableName);
+  const constraint = await getPrimaryConstraint(knex, tableName, SCHEMA);
+
+  const createGroup = createLineGrouper(schema.point_geometry.fields, primaryKeys);
+  const geometryGroupStream = through.obj((line, enc, cb) => cb(null, createGroup(line)));
+
+  geometryGroupStream.pipe(collect(1000)).pipe(
+    map((batch) => {
+      // Convert the groups of points into geometry objects
+      const geometryItems = createGeometryObjects(batch, primaryKeys);
+      createQueuedQuery(queue, geometryItems, tableName, primaryKeys, constraint);
+    }),
+  );
+
+  return geometryGroupStream;
 }
 
 export async function createImportStream(selectedTables, queue) {
   const tableStreams = {};
 
+  // Create import streams for each selected table.
   for (const tableName of selectedTables) {
-    if (tableName !== "geometry") {
+    if (tableName === "geometry") {
+      tableStreams.geometry = await createImportStreamForGeometryTable(queue);
+    } else {
       tableStreams[tableName] = await createImportStreamForTable(tableName, queue);
     }
   }
 
+  // When the first line for a table is received the table name is logged here.
+  const linesReceived = [];
+
   return through.obj((lineObj, enc, cb) => {
     const { tableName, line } = lineObj;
-    let parsedLine = null;
 
     const { fields } = schema[tableName] || {};
     const stream = tableStreams[tableName];
 
     if (line === null && stream) {
-      console.log(`Ending ${tableName} stream...`);
-      stream.end();
-      tableStreams[tableName] = null;
+      // line === null marks the end of the file. End the import stream
+      // to flush any items left in the collect buffer.
+      stream.end(null);
     } else if (stream && fields) {
       try {
-        parsedLine = parseLine(line, fields);
-        tableStreams[tableName].write({ tableName, data: parsedLine || null });
+        // This function runs on each line which would be too much to log.
+        // When receiving the first line of a table, log it and mark it as logged.
+        if (!linesReceived.includes(tableName)) {
+          console.log(`Importing ${tableName}...`);
+          linesReceived.push(tableName);
+        }
+
+        // Parse the line and write it to the import stream for the table.
+        const parsedLine = parseLine(line, fields);
+        // Write the line to the relevant import stream.
+        stream.write(parsedLine);
       } catch (err) {
-        cb(err);
-        return;
+        return cb(err);
       }
     }
 
-    cb();
+    return cb();
   });
 }

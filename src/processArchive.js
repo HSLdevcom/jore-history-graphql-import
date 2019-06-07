@@ -51,9 +51,9 @@ function replaceGeometryIndexes() {
     const indexPadded = `${"0".repeat(4 - index.toString().length)}${index}`;
     const lineIndexed = `${line.substr(0, 32)}${indexPadded}${line.slice(36)}`;
 
-    /*if (line !== lineIndexed) {
-      console.log(`Replaced invalid geometry index: ${lineId}`);
-    }*/
+    if (index === 1 && line !== lineIndexed) {
+      console.log("Replacing geometry indices...");
+    }
 
     previous = lineId;
     return lineIndexed;

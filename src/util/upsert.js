@@ -1,4 +1,4 @@
-import _ from "lodash";
+import _, { compact } from "lodash";
 import { createPrimaryKey } from "./createPrimaryKey";
 
 export async function upsert({
@@ -11,10 +11,17 @@ export async function upsert({
   constraint = "",
 }) {
   let items = [];
+
   if (Array.isArray(itemData)) {
     items = itemData;
-  } else {
-    items[0] = itemData;
+  } else if (itemData) {
+    items = [itemData];
+  }
+
+  items = compact(items);
+
+  if (items.length === 0) {
+    return Promise.resolve();
   }
 
   // Prepend the schema name to the table. This is more convenient in raw queries
