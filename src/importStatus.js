@@ -6,7 +6,13 @@ const { knex } = getKnex();
 const statusTable = "import_status";
 const schema = "jore";
 
+const { DEBUG } = process.env;
+
 export async function getLatestImportedFile() {
+  if (DEBUG === "true") {
+    return Promise.resolve(null);
+  }
+
   return knex
     .withSchema(schema)
     .first()

@@ -110,7 +110,7 @@ const createImportStreamForTable = async (tableName, queue) => {
   // Collect 1000 items and pass them forward as a chunk.
   // A chunk is emitted in a 500ms interval, so items
   // need to arrive within this time to be included.
-  const chunkImportStream = collect(1000, 500);
+  const chunkImportStream = collect(1000, 750);
 
   let chunkIndex = 0;
 
@@ -198,7 +198,7 @@ export async function createImportStream(selectedTables, queue) {
       // line === null marks the end of the file. End the import stream
       // to flush any items left in the collect buffer.
       stream.end(null);
-    } else if (stream && fields) {
+    } else if (stream && lineSchema) {
       try {
         // This function runs on each line which would be too much to log.
         // When receiving the first line of a table, log it and mark it as logged.

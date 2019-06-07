@@ -62,6 +62,8 @@ async function createTables(schema, config, knex) {
           table.specificType("point", "geometry(point, 4326)");
           table.index("point", `${tableName}_points_gix`, "GIST");
         }
+
+        table.timestamp("date_imported").defaultTo(knex.fn.now());
       });
 
       return tableName;
