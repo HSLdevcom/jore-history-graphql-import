@@ -1,5 +1,5 @@
 import schema from "../schema";
-import { pick, compact } from "lodash";
+import { pick, compact, difference } from "lodash";
 
 export const getSelectedTables = (input) => {
   const [...selectedTableNames] = input || process.argv.slice(2);
@@ -9,9 +9,9 @@ export const getSelectedTables = (input) => {
     .filter((tn) => tn.startsWith("exclude:"))
     .map((tn) => tn.replace("exclude:", ""));
 
-  const pickNames = selectedTableNames.filter(
-    (tn) =>
-      !tn.startsWith("exclude:") && (omitNames.length !== 0 && !omitNames.includes(tn)),
+  const pickNames = difference(
+    selectedTableNames.filter((tn) => !tn.startsWith("exclude:")),
+    omitNames,
   );
 
   const selectedTables =
