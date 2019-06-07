@@ -15,7 +15,7 @@ const SCHEMA = "jore";
 // When the returned function is called with a line, it is either assigned
 // to the current group or it becomes the start of a new group. When a group
 // is concluded it is returned, otherwise undefined is returned.
-export function createLineGrouper(fields, groupKeys) {
+export function createLineGrouper(groupKeys) {
   // The current group of lines. Will be pushed onto `groups` when completed.
   let currentGroup = [];
   // The current key of the group. When this changes, the group is deemed complete.
@@ -75,10 +75,17 @@ function getIndexForTable(tableName) {
   return uniq([...indices, ...compoundPrimary]);
 }
 
-const createQueuedQuery = (queue, itemData, tableName, primaryKeys, constraint) => {
-  return queue.add(() =>
+const createQueuedQuery = (
+  queue,
+  itemData,
+  tableName,
+  primaryKeys,
+  constraint,
+  onBeforeImport = () => {},
+) =>
+  queue.add(() =>
     knex.transaction((trx) => {
-      console.log(`Importing ${itemData.length} lines to ${tableName}`);
+      onBeforeImport();
 
       return upsert({
         knex,
@@ -91,7 +98,6 @@ const createQueuedQuery = (queue, itemData, tableName, primaryKeys, constraint) 
       });
     }),
   );
-};
 
 const createImportStreamForTable = async (tableName, queue) => {
   const primaryKeys = getIndexForTable(tableName);
@@ -103,9 +109,14 @@ const createImportStreamForTable = async (tableName, queue) => {
   // need to arrive within this time to be included.
   const chunkImportStream = collect(1000, 500);
 
+  let chunkIndex = 0;
+
   chunkImportStream.pipe(
     map((itemData) =>
-      createQueuedQuery(queue, itemData, tableName, primaryKeys, constraint),
+      createQueuedQuery(queue, itemData, tableName, primaryKeys, constraint, () => {
+        console.log(`${chunkIndex}. Importing ${itemData.length} lines to ${tableName}`);
+        chunkIndex++;
+      }),
     ),
   );
 
@@ -134,7 +145,7 @@ async function createImportStreamForGeometryTable(queue) {
   const primaryKeys = getIndexForTable(tableName);
   const constraint = await getPrimaryConstraint(knex, tableName, SCHEMA);
 
-  const createGroup = createLineGrouper(schema.point_geometry.fields, primaryKeys);
+  const createGroup = createLineGrouper(primaryKeys);
   const geometryGroupStream = through.obj((line, enc, cb) => cb(null, createGroup(line)));
 
   geometryGroupStream.pipe(collect(1000)).pipe(
@@ -166,7 +177,9 @@ export async function createImportStream(selectedTables, queue) {
   return through.obj((lineObj, enc, cb) => {
     const { tableName, line } = lineObj;
 
-    const { fields } = schema[tableName] || {};
+    const { fields } =
+      (tableName === "geometry" ? schema.point_geometry : schema[tableName]) || {};
+
     const stream = tableStreams[tableName];
 
     if (line === null && stream) {
