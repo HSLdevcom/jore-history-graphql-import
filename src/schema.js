@@ -399,71 +399,6 @@ module.exports = {
     ],
     primary: ["route_id", "direction", "date_begin", "date_end", "stop_index"],
   },
-  point_geometry: {
-    filename: "reittimuoto.dat",
-    fields: [
-      {
-        length: 6,
-        name: "route_id",
-        type: "string",
-        index: true,
-        notNullable: true,
-      },
-      {
-        length: 1,
-        name: "direction",
-        type: "enu",
-        index: true,
-        typeOptions: ["1", "2"],
-        notNullable: true,
-      },
-      {
-        length: 8,
-        name: "date_begin",
-        type: "date",
-        index: true,
-        notNullable: true,
-      },
-      {
-        length: 8,
-        name: "date_end",
-        type: "date",
-        index: true,
-        notNullable: true,
-      },
-      {
-        length: 7,
-        name: "stop_id",
-        type: "string",
-        index: true,
-        notNullable: true,
-      },
-      {
-        length: 1,
-        name: "node_type",
-        type: "string",
-        notNullable: true,
-      },
-      {
-        length: 4,
-        name: "index",
-        type: "integer",
-        notNullable: true,
-      },
-      {
-        length: 7,
-        name: "y",
-        type: "integer",
-        notNullable: true,
-      },
-      {
-        length: 7,
-        name: "x",
-        type: "integer",
-        notNullable: true,
-      },
-    ],
-  },
   departure: {
     filename: "aikat.dat",
     fields: [
@@ -668,6 +603,71 @@ module.exports = {
     primary: ["line_id", "note_id", "note_type"],
   },
   geometry: {
+    filename: "reittimuoto.dat",
+    // The line schema definitions are used when parsing lines. The fields
+    // definitions are used when creating the table structure.
+    lineSchema: [
+      {
+        length: 6,
+        name: "route_id",
+        type: "string",
+        index: true,
+        notNullable: true,
+      },
+      {
+        length: 1,
+        name: "direction",
+        type: "enu",
+        index: true,
+        typeOptions: ["1", "2"],
+        notNullable: true,
+      },
+      {
+        length: 8,
+        name: "date_begin",
+        type: "date",
+        index: true,
+        notNullable: true,
+      },
+      {
+        length: 8,
+        name: "date_end",
+        type: "date",
+        index: true,
+        notNullable: true,
+      },
+      {
+        length: 7,
+        name: "stop_id",
+        type: "string",
+        index: true,
+        notNullable: true,
+      },
+      {
+        length: 1,
+        name: "node_type",
+        type: "string",
+        notNullable: true,
+      },
+      {
+        length: 4,
+        name: "index",
+        type: "integer",
+        notNullable: true,
+      },
+      {
+        length: 7,
+        name: "y",
+        type: "integer",
+        notNullable: true,
+      },
+      {
+        length: 7,
+        name: "x",
+        type: "integer",
+        notNullable: true,
+      },
+    ],
     fields: [
       {
         length: 6,

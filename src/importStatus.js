@@ -7,12 +7,11 @@ const statusTable = "import_status";
 const schema = "jore";
 
 export async function getLatestImportedFile() {
-  return null;
-  /*knex
+  return knex
     .withSchema(schema)
     .first()
     .from(statusTable)
-    .orderBy("import_start", "desc");*/
+    .orderBy("import_start", "desc");
 }
 
 export const upsert = async (data) => {

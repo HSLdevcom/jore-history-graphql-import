@@ -11,6 +11,9 @@ import { map, collect } from "etl";
 const { knex } = getKnex();
 const SCHEMA = "jore";
 
+// There are some special considerations for the geometry table
+const GEOMETRY_TABLE_NAME = "geometry";
+
 // Creates a function that groups lines by the `groupKeys` argument.
 // When the returned function is called with a line, it is either assigned
 // to the current group or it becomes the start of a new group. When a group
@@ -141,18 +144,25 @@ function createGeometryObjects(groups, primaryKeys) {
 
 // Import the geometry data from the point_geometry data with conversion
 async function createImportStreamForGeometryTable(queue) {
-  const tableName = "geometry";
+  const tableName = GEOMETRY_TABLE_NAME;
   const primaryKeys = getIndexForTable(tableName);
   const constraint = await getPrimaryConstraint(knex, tableName, SCHEMA);
 
   const createGroup = createLineGrouper(primaryKeys);
   const geometryGroupStream = through.obj((line, enc, cb) => cb(null, createGroup(line)));
 
+  let chunkIndex = 0;
+
   geometryGroupStream.pipe(collect(1000)).pipe(
     map((batch) => {
       // Convert the groups of points into geometry objects
       const geometryItems = createGeometryObjects(batch, primaryKeys);
-      createQueuedQuery(queue, geometryItems, tableName, primaryKeys, constraint);
+      createQueuedQuery(queue, geometryItems, tableName, primaryKeys, constraint, () => {
+        console.log(
+          `${chunkIndex}. Importing ${geometryItems.length} lines to ${tableName}`,
+        );
+        chunkIndex++;
+      });
     }),
   );
 
@@ -164,8 +174,8 @@ export async function createImportStream(selectedTables, queue) {
 
   // Create import streams for each selected table.
   for (const tableName of selectedTables) {
-    if (tableName === "geometry") {
-      tableStreams.geometry = await createImportStreamForGeometryTable(queue);
+    if (tableName === GEOMETRY_TABLE_NAME) {
+      tableStreams[GEOMETRY_TABLE_NAME] = await createImportStreamForGeometryTable(queue);
     } else {
       tableStreams[tableName] = await createImportStreamForTable(tableName, queue);
     }
@@ -177,8 +187,10 @@ export async function createImportStream(selectedTables, queue) {
   return through.obj((lineObj, enc, cb) => {
     const { tableName, line } = lineObj;
 
-    const { fields } =
-      (tableName === "geometry" ? schema.point_geometry : schema[tableName]) || {};
+    // Some tables (ie geometry) use a separate lineSchema for parsing lines.
+    // The lines are then combined and inserted into the database according
+    // to the fields schema.
+    const { fields, lineSchema = fields } = schema[tableName] || {};
 
     const stream = tableStreams[tableName];
 
@@ -196,7 +208,7 @@ export async function createImportStream(selectedTables, queue) {
         }
 
         // Parse the line and write it to the import stream for the table.
-        const parsedLine = parseLine(line, fields);
+        const parsedLine = parseLine(line, lineSchema);
         // Write the line to the relevant import stream.
         stream.write(parsedLine);
       } catch (err) {

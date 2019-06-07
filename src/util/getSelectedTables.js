@@ -5,9 +5,7 @@ export const getSelectedTables = (input) => {
   const [...selectedTableNames] = input || process.argv.slice(2);
 
   const selectedTables =
-    selectedTableNames.length === 0
-      ? Object.keys(schema).filter((tn) => tn !== "departure")
-      : selectedTableNames;
+    selectedTableNames.length === 0 ? Object.keys(schema) : selectedTableNames;
 
   const selectedSchema =
     selectedTables.length !== 0

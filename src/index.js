@@ -12,7 +12,6 @@ import {
 } from "./scheduledImports";
 
 const { knex } = getKnex();
-const { selectedTables, selectedFiles } = getSelectedTables();
 
 const sources = {
   daily: fetchExportFromFTP,
@@ -29,14 +28,18 @@ createScheduledImport("daily", EARLY_MORNING, importFromDefaultSource);
 })();
 
 async function importFile(fileStream, fileName) {
+  const execStart = process.hrtime();
+  const { selectedTables, selectedFiles } = getSelectedTables();
+
   try {
     await new Promise(async (resolve, reject) => {
       await startImport(fileName);
 
-      const queue = new PQueue({ concurrency: 50 });
+      const queue = new PQueue({ concurrency: 20 });
       const importerStream = await createImportStream(selectedTables, queue);
 
       console.log("Unpacking and processing the archive...");
+
       processArchive(fileStream, selectedFiles)
         .pipe(importerStream)
         .on("finish", () => {
@@ -47,10 +50,19 @@ async function importFile(fileStream, fileName) {
         .on("error", reject);
     });
 
-    console.log("Ok, all done.");
+    const [execDuration] = process.hrtime(execStart);
+    await importCompleted(fileName, true, execDuration);
+
+    console.log(
+      `${selectedTables.join(", ")} from ${fileName} imported in ${execDuration}s`,
+    );
   } catch (err) {
+    const [execDuration] = process.hrtime(execStart);
+
+    console.log(`${fileName} import failed. Duration: ${execDuration}s`);
     console.error(err);
-    await importCompleted(fileName, false);
+
+    await importCompleted(fileName, false, execDuration);
   }
 }
 

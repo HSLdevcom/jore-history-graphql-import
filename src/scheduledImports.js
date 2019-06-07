@@ -5,7 +5,6 @@ export const MIDNIGHT = "0 0 0 * * *";
 export const EARLY_MORNING = "0 0 3 * * *";
 
 const scheduledImports = {};
-
 const runningTasks = [];
 
 function onTaskCompleted(name) {
@@ -38,14 +37,14 @@ function runTask(name, task) {
 
 export function createScheduledImport(name, cron, task) {
   const job = new CronJob(
-    cron,
-    runTask(name, task),
-    () => onTaskCompleted(name),
+    cron, // The cron config
+    runTask(name, task), // The task to execute
+    () => onTaskCompleted(name), // The callback passed to the task
     false, // Start right now (we want to wait until start() is called)
     null, // time zone
     null, // Context
     true, // Run on init
-    3, // UTC offset
+    3, // UTC offset, safer than requiring knowledge about timezones
   );
 
   scheduledImports[name] = job;

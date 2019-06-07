@@ -7,15 +7,10 @@ import schema from "./schema";
 
 const isWhitespaceOnly = /^\s*$/;
 
-const getTableNameFromFileName = (filename) => {
-  if (filename === "reittimuoto.dat") {
-    return "geometry";
-  }
-
-  return Object.entries(schema).find(
+const getTableNameFromFileName = (filename) =>
+  Object.entries(schema).find(
     ([, { filename: schemaFilename }]) => filename === schemaFilename,
   )[0];
-};
 
 function replaceLinebreaks() {
   let lines = [];
