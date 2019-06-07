@@ -85,7 +85,7 @@ const createQueuedQuery = (
   primaryKeys,
   constraint,
   onBeforeImport = () => {},
-) =>
+) => {
   queue.add(() =>
     knex.transaction((trx) => {
       onBeforeImport();
@@ -101,6 +101,7 @@ const createQueuedQuery = (
       });
     }),
   );
+};
 
 const createImportStreamForTable = async (tableName, queue) => {
   const primaryKeys = getIndexForTable(tableName);
