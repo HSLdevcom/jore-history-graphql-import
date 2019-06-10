@@ -1,105 +1,136 @@
+/* eslint-disable consistent-return */
 import { fetchExportFromFTP } from "./sources/fetchExportFromFTP";
 import { getKnex } from "./knex";
-import { processArchive } from "./processArchive";
-import { startImport, importCompleted } from "./importStatus";
-import { createImportStream } from "./importData";
-import PQueue from "p-queue";
-import { getSelectedTables } from "./util/getSelectedTables";
+import { getSelectedTableStatus, setTableOption } from "./selectedTables";
 import {
   createScheduledImport,
   EARLY_MORNING,
   startScheduledImport,
-} from "./scheduledImports";
+  runScheduledImportNow,
+} from "./schedule";
+import express from "express";
+import fileUpload from "express-fileupload";
+import { createEngine } from "express-react-views";
+import path from "path";
+import fs from "fs-extra";
+import basicAuth from "express-basic-auth";
+import { importFromUploadedFile, createTaskForDefaultSource } from "./import";
 
 const { knex } = getKnex();
+const { SERVER_PORT = 3000 } = process.env;
 
-const sources = {
-  daily: fetchExportFromFTP,
+const cwd = process.cwd();
+const uploadPath = path.join(cwd, "uploads");
+
+// The global state that informs the app if an import task is running.
+// Always check this state before starting an import.
+let isImporting = false;
+
+// Marks the global isImporting state as true, blocking other imports.
+// Also acts as a guard that can be used in if-statements.
+const onBeforeImport = () => {
+  if (isImporting) {
+    return false;
+  }
+
+  isImporting = true;
+  return true;
 };
 
-createScheduledImport("daily", EARLY_MORNING, importFromDefaultSource);
+// Sets the global isImporting state to false, allowing other import tasks to proceed.
+const onAfterImport = () => {
+  isImporting = false;
+};
+
+createScheduledImport(
+  "daily",
+  EARLY_MORNING,
+  createTaskForDefaultSource(onBeforeImport, onAfterImport),
+);
 
 (async () => {
   console.log("Initializing DB...");
   await knex.migrate.latest();
 
   // Start the task for the daily import as soon as the server starts.
+  // This will start the timer and run the task once.
   startScheduledImport("daily");
-})();
 
-async function importFile(fileStream, fileName) {
-  const execStart = process.hrtime();
-  const { selectedTables, selectedFiles } = getSelectedTables();
+  const app = express();
 
-  try {
-    await new Promise(async (resolve, reject) => {
-      await startImport(fileName);
+  app.use(
+    fileUpload({
+      useTempFiles: true,
+      safeFileNames: true,
+      preserveExtension: true,
+    }),
+  );
 
-      const queue = new PQueue({ concurrency: 20 });
-      const importerStream = await createImportStream(selectedTables, queue);
+  app.use(express.urlencoded());
 
-      console.log("Unpacking and processing the archive...");
+  app.use(
+    basicAuth({
+      users: { admin: "supersecret" },
+    }),
+  );
 
-      processArchive(fileStream, selectedFiles)
-        .pipe(importerStream)
-        .on("finish", () => {
-          setTimeout(() => {
-            resolve(queue.onEmpty());
-          }, 1000);
-        })
-        .on("error", reject);
-    });
+  app.engine("jsx", createEngine());
+  app.set("view engine", "jsx");
 
-    const [execDuration] = process.hrtime(execStart);
-    await importCompleted(fileName, true, execDuration);
+  app.set("views", path.join(__dirname, "views"));
 
-    console.log(
-      `${selectedTables.join(", ")} from ${fileName} imported in ${execDuration}s`,
-    );
-  } catch (err) {
-    const [execDuration] = process.hrtime(execStart);
+  app.get("/admin", (req, res) => {
+    res.render("admin", { isImporting, selectedTables: getSelectedTableStatus() });
+  });
 
-    console.log(`${fileName} import failed. Duration: ${execDuration}s`);
-    console.error(err);
+  app.post("/run-daily", (req, res) => {
+    runScheduledImportNow("daily");
+    res.redirect("/admin");
+  });
 
-    await importCompleted(fileName, false, execDuration);
-  }
-}
-
-// Downloads the export from the default source and runs the import.
-async function importFromDefaultSource(onComplete = () => {}) {
-  const { DEFAULT_EXPORT_SOURCE = "daily" } = process.env;
-  const downloadSource = sources[DEFAULT_EXPORT_SOURCE];
-
-  if (downloadSource) {
-    console.log(`Importing from source ${DEFAULT_EXPORT_SOURCE}.`);
-    await importFromRemoteRepository(downloadSource);
-  } else {
-    console.log(`${DEFAULT_EXPORT_SOURCE} is not defined as a source for the importer.`);
-  }
-
-  onComplete();
-}
-
-// Downloads an export archive from the `source` function and runs the import.
-// source should return a promise that resolves to `{name, file}`. `name` is the
-// name of the downloaded archive we're about to import and `file` is a readable
-// stream that provides the data.
-async function importFromRemoteRepository(source) {
-  try {
-    console.log("Downloading import data...");
-    const fileToImport = await source();
-
-    if (!fileToImport) {
-      console.log("Nothing to import.");
-      return Promise.resolve(false);
+  app.post("/upload", async (req, res) => {
+    if (Object.keys(req.files).length === 0) {
+      return res.status(400).send("No files were uploaded.");
     }
 
-    const { name, file } = fileToImport;
-    return importFile(file, name);
-  } catch (err) {
-    console.error(err);
-  }
+    // The name of the input field (i.e. "sampleFile") is used to retrieve the uploaded file
+    const exportFile = req.files.export;
+    const exportName = exportFile.name;
+    const exportPath = path.join(uploadPath, exportName);
 
-  return Promise.resolve(false);
-}
+    await fs.emptyDir(uploadPath);
+
+    // Use the mv() method to place the file somewhere on your server
+    exportFile.mv(exportPath, (err) => {
+      if (err) {
+        return res.status(500).send(err);
+      }
+
+      importFromUploadedFile(exportFile, exportName, onBeforeImport, onAfterImport).then(
+        (imported) => {
+          if (imported) {
+            console.log("Upload completed!");
+          } else {
+            console.log("Import failed.");
+          }
+        },
+      );
+
+      res.redirect("/admin");
+    });
+  });
+
+  app.post("/select-tables", (req, res) => {
+    const tableSettings = req.body;
+
+    for (const [tableName, isEnabled] of Object.entries(tableSettings)) {
+      setTableOption(tableName, isEnabled);
+    }
+
+    res.redirect("/admin");
+  });
+
+  app.listen(SERVER_PORT, () => {
+    console.log(`Server is listening on port ${SERVER_PORT}`);
+  });
+})();

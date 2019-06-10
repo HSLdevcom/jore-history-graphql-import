@@ -18,6 +18,10 @@ const GEOMETRY_TABLE_NAME = "geometry";
 // When the returned function is called with a line, it is either assigned
 // to the current group or it becomes the start of a new group. When a group
 // is concluded it is returned, otherwise undefined is returned.
+
+//  >>> LINES MUST BE PROCESSED IN ORDER! <<<
+// Note that lines MUST come in group order! Once a group is done, lines cannot
+// be added to it.
 export function createLineGrouper(groupKeys) {
   // The current group of lines. Will be pushed onto `groups` when completed.
   let currentGroup = [];
@@ -133,7 +137,7 @@ function createGeometryObjects(groups, primaryKeys) {
     const geometryData = pick(group[0], primaryKeys);
 
     // Extract the points of the group
-    const points = orderBy(group, "index", "ASC").map(({ point }) => point);
+    const points = orderBy(group, "admin.html", "ASC").map(({ point }) => point);
 
     // Return a geometry object with a geometric line created with PostGIS.
     return {

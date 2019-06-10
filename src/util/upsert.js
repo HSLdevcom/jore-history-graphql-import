@@ -1,6 +1,9 @@
 import _, { compact } from "lodash";
 import { createPrimaryKey } from "./createPrimaryKey";
 
+// "Upsert" function for PostgreSQL. Inserts or updates lines in bulk. Insert if
+// the primary key for the line is available, update otherwise.
+
 export async function upsert({
   knex,
   schema,
@@ -29,7 +32,11 @@ export async function upsert({
   const tableId = `${schema}.${tableName}`;
 
   function batchInsert(rows) {
-    return knex.batchInsert(tableId, rows, 1000).transacting(trx);
+    if (trx) {
+      return knex.batchInsert(tableId, rows, 1000).transacting(trx);
+    }
+
+    return knex.batchInsert(tableId, rows, 1000);
   }
 
   // Just insert if we don't have any indices
@@ -89,5 +96,6 @@ ${updateValues};
     ...(!constraint ? primaryIndices : [constraint]),
   ];
 
-  return trx.raw(upsertQuery, upsertBindings);
+  const dbInterface = trx || knex;
+  return dbInterface.raw(upsertQuery, upsertBindings);
 }

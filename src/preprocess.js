@@ -86,7 +86,7 @@ function processLines(tableName) {
   });
 }
 
-export function processArchive(archiveStream, filesToDownload = []) {
+export function preprocess(archiveStream, filesToDownload = []) {
   const returnStream = new PassThrough({ objectMode: true });
 
   archiveStream

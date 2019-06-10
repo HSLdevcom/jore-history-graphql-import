@@ -664,7 +664,7 @@ module.exports = {
       },
       {
         length: 4,
-        name: "index",
+        name: "admin.html",
         type: "integer",
         notNullable: true,
       },
