@@ -18,7 +18,7 @@ import { importFromUploadedFile, createTaskForDefaultSource } from "./import";
 import { getLatestImportedFile } from "./importStatus";
 
 const { knex } = getKnex();
-const { SERVER_PORT = 3000, ADMIN_PASSWORD } = process.env;
+const { SERVER_PORT = 3000, ADMIN_PASSWORD, PATH_PREFIX } = process.env;
 
 const cwd = process.cwd();
 const uploadPath = path.join(cwd, "uploads");
@@ -101,7 +101,7 @@ createScheduledImport(
 
   app.post("/run-daily", (req, res) => {
     runScheduledImportNow("daily");
-    res.redirect("/");
+    res.redirect(PATH_PREFIX);
   });
 
   app.post("/upload", async (req, res) => {
@@ -133,7 +133,7 @@ createScheduledImport(
         },
       );
 
-      res.redirect("/");
+      res.redirect(PATH_PREFIX);
     });
   });
 
@@ -148,7 +148,7 @@ createScheduledImport(
       setTableOption(tableName, isEnabled);
     }
 
-    res.redirect("/");
+    res.redirect(PATH_PREFIX);
   });
 
   app.listen(SERVER_PORT, () => {
