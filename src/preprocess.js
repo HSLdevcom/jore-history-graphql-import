@@ -1,135 +1,120 @@
-/* eslint-disable no-await-in-loop */
-const fs = require("fs-extra");
-const path = require("path");
-const readline = require("readline");
-const iconv = require("iconv-lite");
-const schema = require("./schema");
+import iconv from "iconv-lite";
+import through from "through2";
+import split from "split2";
+import { Parse } from "unzipper";
+import { PassThrough } from "stream";
+import schema from "./schema";
 
 const isWhitespaceOnly = /^\s*$/;
 
-const filenames = Object.values(schema)
-  .map((table) => table.filename)
-  .filter((filename) => !!filename);
+const getTableNameFromFileName = (filename) =>
+  Object.entries(schema).find(
+    ([, { filename: schemaFilename }]) => filename === schemaFilename,
+  )[0];
 
-function processLines(filename, callback) {
-  return new Promise((resolve, reject) => {
-    const filePath = path.join(__dirname, "..", "processed", filename);
-    const tempPath = `${filePath}.tmp`;
+function replaceLinebreaks() {
+  let lines = [];
 
-    const input = fs.createReadStream(filePath);
-    const output = fs.createWriteStream(tempPath);
-    const lineReader = readline.createInterface({ input });
+  return (line, lineLength) => {
+    lines.push(line);
 
-    lineReader.on("line", (line) => {
-      if (!isWhitespaceOnly.test(line)) {
-        callback(line, output);
-      }
-    });
-    lineReader.on("close", () => {
-      output.end();
-      fs.rename(
-        tempPath,
-        filePath,
-        (error) => (error ? reject(error) : resolve()),
-      );
-    });
-  });
+    const currentLength = lines.join("\n").length;
+    let output = "";
+
+    if (currentLength > lineLength) {
+      output = `${lines.join("\n")}\n`;
+      console.log(`Did not replace linebreak(s):\n${output}`);
+      lines = [];
+    }
+    if (currentLength === lineLength) {
+      output = `${lines.join("  ")}\n`;
+      if (lines.length > 1) console.log(`Replaced linebreak(s):\n${output}`);
+      lines = [];
+    }
+
+    return output;
+  };
 }
 
-function readLineLength(filename) {
-  return new Promise((resolve) => {
-    let maxLength = 0;
-    const filePath = path.join(__dirname, "..", "data", filename);
-    const lineReader = readline.createInterface({
-      input: fs.createReadStream(filePath),
-    });
-
-    lineReader.on("line", (line) => {
-      if (line.length > maxLength) maxLength = line.length;
-    });
-    lineReader.on("close", () => {
-      resolve(maxLength);
-    });
-  });
-}
-
-async function replaceLinebreaks() {
-  for (let i = 0; i < filenames.length; i += 1) {
-    const lineLength = await readLineLength(filenames[i]);
-
-    let lines = [];
-    const callback = (line, stream) => {
-      lines = [...lines, line];
-      const currentLength = lines.join("\r\n").length;
-
-      if (currentLength > lineLength) {
-        const output = lines.join("\n");
-        stream.write(`${output}\n`);
-        console.log(`Did not replace linebreak(s):\n${output}`);
-        lines = [];
-      }
-      if (currentLength === lineLength) {
-        const output = lines.join("  ");
-        stream.write(`${output}\n`);
-        if (lines.length > 1) console.log(`Replaced linebreak(s):\n${output}`);
-        lines = [];
-      }
-    };
-
-    await processLines(filenames[i], callback);
-  }
-}
-
-async function replaceGeometryIndexes() {
+function replaceGeometryIndexes() {
   let index = 1;
   let previous;
 
-  const callback = (line, stream) => {
+  return (line) => {
     const lineId = line.substr(0, 24);
     index = lineId === previous ? index + 1 : 1;
     const indexPadded = `${"0".repeat(4 - index.toString().length)}${index}`;
     const lineIndexed = `${line.substr(0, 32)}${indexPadded}${line.slice(36)}`;
-    stream.write(`${lineIndexed}\r\n`);
 
-    if (line !== lineIndexed) {
-      console.log(`Replaced invalid geometry index: ${lineId}`);
+    if (index === 1 && line !== lineIndexed) {
+      console.log("Replacing geometry indices...");
     }
+
     previous = lineId;
+    return lineIndexed;
   };
-
-  await processLines("reittimuoto.dat", callback);
 }
 
-function updateEncodingInner(filename) {
-  return new Promise((resolve) => {
-    const filePath = path.join(__dirname, "..", "data", filename);
-    const destPath = path.join(__dirname, "..", "processed", filename);
+function processLines(tableName) {
+  const geometryReplacer = replaceGeometryIndexes();
+  const lineBreaksReplacer = replaceLinebreaks();
 
-    const inStream = fs.createReadStream(filePath);
-    const outStream = fs.createWriteStream(destPath);
+  let maxLength = 0;
 
-    inStream
-      .pipe(iconv.decodeStream("ISO-8859-1"))
-      .pipe(iconv.encodeStream("utf8"))
-      .pipe(outStream);
+  return through.obj(function createLine(chunk, enc, cb) {
+    const str = enc === "buffer" ? chunk.toString("utf8") : chunk;
 
-    outStream.on("close", () => {
-      resolve();
-    });
+    if (str && !isWhitespaceOnly.test(str)) {
+      if (str.length > maxLength) {
+        maxLength = str.length;
+      }
+
+      const linebreaksReplacedStr = lineBreaksReplacer(str, maxLength);
+
+      if (linebreaksReplacedStr) {
+        let resultLine = linebreaksReplacedStr;
+
+        if (tableName === "geometry") {
+          resultLine = geometryReplacer(linebreaksReplacedStr);
+        }
+
+        this.push({ tableName, line: resultLine });
+      }
+    }
+
+    cb();
   });
 }
 
-async function updateEncoding() {
-  for (const file of filenames) {
-    await updateEncodingInner(file);
-  }
-}
+export function preprocess(archiveStream, filesToDownload = []) {
+  const returnStream = new PassThrough({ objectMode: true });
 
-fs.ensureDir(path.join(__dirname, "..", "processed"))
-  .then(() => updateEncoding())
-  .then(() => replaceLinebreaks())
-  .then(() => replaceGeometryIndexes())
-  .catch((error) => {
-    console.error(error);
-    process.exit(1);
-  });
+  archiveStream
+    .pipe(Parse())
+    .pipe(
+      through.obj((entry, enc, cb) => {
+        if (filesToDownload.includes(entry.path)) {
+          const tableName = getTableNameFromFileName(entry.path);
+
+          entry
+            .pipe(iconv.decodeStream("ISO-8859-1"))
+            .pipe(iconv.encodeStream("utf8"))
+            .pipe(split())
+            .pipe(processLines(tableName))
+            .on("data", (line) => returnStream.push(line))
+            .on("finish", () => {
+              returnStream.push({ tableName, line: null });
+              cb();
+            })
+            .on("error", (err) => cb(err));
+        } else {
+          entry.autodrain();
+          cb();
+        }
+      }),
+    )
+    .on("finish", () => returnStream.end())
+    .on("error", (err) => returnStream.destroy(err));
+
+  return returnStream;
+}

@@ -1,12 +1,17 @@
-const _ = require("lodash");
+const { find, compact } = require("lodash");
+const pMap = require("p-map");
 
-function createTables(schema, knexInstance, config) {
-  const schemaPromises = [];
+async function createTables(schema, config, knex) {
+  const createdTables = await pMap(
+    Object.entries(config),
+    async ([tableName, { fields }]) => {
+      const tableExists = await knex.schema.withSchema(schema).hasTable(tableName);
 
-  Object.entries(config).forEach(([tableName, { fields }]) => {
-    const tablePromise = knexInstance.schema
-      .withSchema(schema)
-      .createTable(tableName, (table) => {
+      if (tableExists) {
+        return "";
+      }
+
+      await knex.schema.withSchema(schema).createTable(tableName, (table) => {
         fields.forEach(
           ({
             length,
@@ -51,44 +56,40 @@ function createTables(schema, knexInstance, config) {
           },
         );
         if (
-          (_.find(fields, { name: "lat" }) &&
-            _.find(fields, { name: "lon" })) ||
-          (_.find(fields, { name: "x" }) && _.find(fields, { name: "y" }))
+          (find(fields, { name: "lat" }) && find(fields, { name: "lon" })) ||
+          (find(fields, { name: "x" }) && find(fields, { name: "y" }))
         ) {
           table.specificType("point", "geometry(point, 4326)");
           table.index("point", `${tableName}_points_gix`, "GIST");
         }
+
+        table.timestamp("date_imported").defaultTo(knex.fn.now());
       });
 
-    schemaPromises.push(tablePromise);
-  });
+      return tableName;
+    },
+  );
 
-  return Promise.all(schemaPromises);
+  return compact(createdTables);
 }
 
-function createForeignKeys(schema, knexInstance, config) {
-  const schemaPromises = [];
+async function createForeignKeys(schema, config, knex) {
+  return pMap(Object.entries(config), ([tableName, { fields, primary }]) => {
+    return knex.schema.withSchema(schema).table(tableName, (table) => {
+      if (primary) {
+        table.unique(primary).primary(primary);
+      }
 
-  Object.entries(config).forEach(([tableName, { fields, primary }]) => {
-    const indexPromise = knexInstance.schema
-      .withSchema(schema)
-      .table(tableName, (table) => {
-        if (primary) {
-          table.unique(primary).primary(primary);
+      /*fields.forEach(({ name, type, foreign }) => {
+        if (name && type && foreign) {
+          table
+            .foreign(name)
+            .references(foreign.split(".")[1])
+            .inTable(`jore.${foreign.split(".")[0]}`);
         }
-        fields.forEach(({ name, type, foreign }) => {
-          if (name && type && foreign) {
-            table
-              .foreign(name)
-              .references(foreign.split(".")[1])
-              .inTable(`jore.${foreign.split(".")[0]}`);
-          }
-        });
-      });
-    schemaPromises.push(indexPromise);
+      });*/
+    });
   });
-
-  return Promise.all(schemaPromises);
 }
 
 module.exports = {

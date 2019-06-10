@@ -73,7 +73,7 @@ bash <-- add this
 
 #### run_daily.sh
 
-This is the default script that will run when running the Docker container without overriding the start command. It will download the exort from the FTP server, so make sure that USERNAME and PASSWORD env variables are set. Ask the other members of the project team for these.
+This is the default script that will run when running the Docker container without overriding the start command. It will download the export from the FTP server, so make sure that USERNAME and PASSWORD env variables are set. Ask the other members of the project team for these.
 
 The script that downloads the file is called `fetch_faily.sh` and it can be run separately if needed.
 

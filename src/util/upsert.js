@@ -1,7 +1,10 @@
-const _ = require("lodash");
-const createPrimaryKey = require("./createPrimaryKey");
+import _, { compact } from "lodash";
+import { createPrimaryKey } from "./createPrimaryKey";
 
-module.exports = async function upsert({
+// "Upsert" function for PostgreSQL. Inserts or updates lines in bulk. Insert if
+// the primary key for the line is available, update otherwise.
+
+export async function upsert({
   knex,
   schema,
   trx,
@@ -11,10 +14,17 @@ module.exports = async function upsert({
   constraint = "",
 }) {
   let items = [];
+
   if (Array.isArray(itemData)) {
     items = itemData;
-  } else {
-    items[0] = itemData;
+  } else if (itemData) {
+    items = [itemData];
+  }
+
+  items = compact(items);
+
+  if (items.length === 0) {
+    return Promise.resolve();
   }
 
   // Prepend the schema name to the table. This is more convenient in raw queries
@@ -22,7 +32,11 @@ module.exports = async function upsert({
   const tableId = `${schema}.${tableName}`;
 
   function batchInsert(rows) {
-    return knex.batchInsert(tableId, rows, 1000).transacting(trx);
+    if (trx) {
+      return knex.batchInsert(tableId, rows, 1000).transacting(trx);
+    }
+
+    return knex.batchInsert(tableId, rows, 1000);
   }
 
   // Just insert if we don't have any indices
@@ -82,5 +96,6 @@ ${updateValues};
     ...(!constraint ? primaryIndices : [constraint]),
   ];
 
-  return trx.raw(upsertQuery, upsertBindings);
-};
+  const dbInterface = trx || knex;
+  return dbInterface.raw(upsertQuery, upsertBindings);
+}

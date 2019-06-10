@@ -1,6 +1,6 @@
 const pick = require("lodash/pick");
 const tables = require("../src/schema");
-const { createTables, createForeignKeys } = require("../src/util/createDb");
+const { createTables, createForeignKeys } = require("../src/setup/createDb");
 
 exports.up = async function(knex) {
   const hasTables = [
