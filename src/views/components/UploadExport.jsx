@@ -1,12 +1,14 @@
 import React from "react";
 
-const UploadExport = ({disabled}) => {
+const { PATH_PREFIX } = process.env;
+
+const UploadExport = ({ disabled }) => {
   return (
     <>
       <h3>Upload an export archive</h3>
       <form
         id="export-upload"
-        action="/upload"
+        action={`${PATH_PREFIX}/upload`}
         method="post"
         encType="multipart/form-data"
       >
