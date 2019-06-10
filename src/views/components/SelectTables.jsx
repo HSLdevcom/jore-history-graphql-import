@@ -1,5 +1,7 @@
 import React, { useCallback } from "react";
 
+const { PATH_PREFIX } = process.env;
+
 const SelectTables = ({ disabled = true, selectedTables }) => {
   const onChange = useCallback(() => {}, []);
 
@@ -11,7 +13,7 @@ const SelectTables = ({ disabled = true, selectedTables }) => {
         all import tasks, both scheduled and manual. The setting is kept in memory and
         will be reset when the server app restarts.
       </p>
-      <form action="/select-tables" method="post">
+      <form action={`${PATH_PREFIX}select-tables`} method="post">
         <fieldset disabled={disabled}>
           <legend>Tables to import</legend>
           <ul style={{ listStyleType: "none", padding: 0 }}>
