@@ -60,17 +60,25 @@ export const createTaskForDefaultSource = (
   onBefore = () => {},
   onAfter = () => {},
 ) => async (onComplete = () => {}) => {
+  const importId = "default-source";
   const { DEFAULT_EXPORT_SOURCE = "daily" } = process.env;
   const downloadSource = sources[DEFAULT_EXPORT_SOURCE];
 
-  if (downloadSource) {
-    if (onBefore()) { // Take care to call onAfter ONLY in onBefore conditionals!
+  if (!downloadSource) {
+    console.log(`${DEFAULT_EXPORT_SOURCE} is not defined as a source for the importer.`);
+    onComplete();
+    return;
+  }
+
+  if (onBefore(importId)) {
+    try {
       console.log(`Importing from source ${DEFAULT_EXPORT_SOURCE}.`);
       await importFromRemoteRepository(downloadSource);
-      onAfter();
+    } catch (err) {
+      console.log(err);
     }
-  } else {
-    console.log(`${DEFAULT_EXPORT_SOURCE} is not defined as a source for the importer.`);
+
+    onAfter(importId);
   }
 
   onComplete();
@@ -82,39 +90,35 @@ export async function importFromUploadedFile(
   onBefore = () => {},
   onAfter = () => {},
 ) {
-  try {
-    if (!file) {
-      console.log("Nothing to import.");
-      return false;
+  const importId = "uploaded-file";
+
+  if (!file) {
+    console.log("Nothing to import.");
+    return false;
+  }
+
+  if (onBefore(importId)) {
+    try {
+      await importFile(file, name);
+    } catch (err) {
+      console.error(err);
     }
 
-    if (onBefore()) {
-      await importFile(file, name);
-      onAfter();
-    }
-  } catch (err) {
-    console.error(err);
-    return false;
+    onAfter(importId);
   }
 
   return true;
 }
 
 async function importFromRemoteRepository(source) {
-  try {
-    console.log("Downloading import data...");
-    const fileToImport = await source();
+  console.log("Downloading import data...");
+  const fileToImport = await source();
 
-    if (!fileToImport) {
-      console.log("Nothing to import.");
-      return Promise.resolve(false);
-    }
-
-    const { name, file } = fileToImport;
-    return importFile(file, name);
-  } catch (err) {
-    console.error(err);
+  if (!fileToImport) {
+    console.log("Nothing to import.");
+    return Promise.resolve(false);
   }
 
-  return Promise.resolve(false);
+  const { name, file } = fileToImport;
+  return importFile(file, name);
 }

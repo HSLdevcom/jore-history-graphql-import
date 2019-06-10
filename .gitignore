@@ -39,3 +39,4 @@ data
 processed
 source/*.zip
 .env
+uploads

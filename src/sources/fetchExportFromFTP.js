@@ -12,6 +12,7 @@ const {
   FTP_HOST = "",
   FTP_PORT = "21",
   FTP_PATH = "/",
+  DEBUG = "false",
 } = process.env;
 
 export async function fetchExportFromFTP() {
@@ -19,7 +20,13 @@ export async function fetchExportFromFTP() {
     return null;
   }
 
-  const latestImported = await getLatestImportedFile();
+  let latestImported = null;
+
+  // Skip latest file check if we're debugging.
+  if (DEBUG !== "true") {
+    latestImported = await getLatestImportedFile();
+  }
+
   const client = new Client();
 
   await client.access({

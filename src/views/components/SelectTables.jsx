@@ -1,6 +1,6 @@
 import React, { useCallback } from "react";
 
-const SelectTables = ({ readOnly = true, selectedTables }) => {
+const SelectTables = ({ disabled = true, selectedTables }) => {
   const onChange = useCallback(() => {}, []);
 
   return (
@@ -12,13 +12,14 @@ const SelectTables = ({ readOnly = true, selectedTables }) => {
         will be reset when the server app restarts.
       </p>
       <form action="/select-tables" method="post">
-        <fieldset disabled={readOnly}>
+        <fieldset disabled={disabled}>
           <legend>Tables to import</legend>
           <ul style={{ listStyleType: "none", padding: 0 }}>
             {Object.entries(selectedTables).map(([tableName, isSelected]) => (
-              <li>
+              <li key={tableName}>
                 <label>
                   <input
+                    name={tableName}
                     onChange={onChange}
                     type="checkbox"
                     value={tableName}

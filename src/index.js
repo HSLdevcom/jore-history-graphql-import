@@ -15,9 +15,10 @@ import path from "path";
 import fs from "fs-extra";
 import basicAuth from "express-basic-auth";
 import { importFromUploadedFile, createTaskForDefaultSource } from "./import";
+import { getLatestImportedFile } from "./importStatus";
 
 const { knex } = getKnex();
-const { SERVER_PORT = 3000 } = process.env;
+const { SERVER_PORT = 3000, ADMIN_PASSWORD } = process.env;
 
 const cwd = process.cwd();
 const uploadPath = path.join(cwd, "uploads");
@@ -25,21 +26,30 @@ const uploadPath = path.join(cwd, "uploads");
 // The global state that informs the app if an import task is running.
 // Always check this state before starting an import.
 let isImporting = false;
+let currentImporter = "";
 
 // Marks the global isImporting state as true, blocking other imports.
 // Also acts as a guard that can be used in if-statements.
-const onBeforeImport = () => {
+const onBeforeImport = (importerId = "global") => {
   if (isImporting) {
     return false;
   }
 
   isImporting = true;
+  currentImporter = importerId;
+
   return true;
 };
 
 // Sets the global isImporting state to false, allowing other import tasks to proceed.
-const onAfterImport = () => {
-  isImporting = false;
+const onAfterImport = (importerId = "global") => {
+  if (importerId === currentImporter) {
+    isImporting = false;
+    currentImporter = "";
+    return true;
+  }
+
+  return false;
 };
 
 createScheduledImport(
@@ -66,11 +76,12 @@ createScheduledImport(
     }),
   );
 
-  app.use(express.urlencoded());
+  app.use(express.urlencoded({ extended: true }));
 
   app.use(
     basicAuth({
-      users: { admin: "supersecret" },
+      challenge: true,
+      users: { admin: ADMIN_PASSWORD },
     }),
   );
 
@@ -79,8 +90,14 @@ createScheduledImport(
 
   app.set("views", path.join(__dirname, "views"));
 
-  app.get("/admin", (req, res) => {
-    res.render("admin", { isImporting, selectedTables: getSelectedTableStatus() });
+  app.get("/admin", async (req, res) => {
+    const latestImportedFile = await getLatestImportedFile();
+
+    res.render("admin", {
+      isImporting,
+      latestImportedFile,
+      selectedTables: getSelectedTableStatus(),
+    });
   });
 
   app.post("/run-daily", (req, res) => {
@@ -95,7 +112,7 @@ createScheduledImport(
 
     // The name of the input field (i.e. "sampleFile") is used to retrieve the uploaded file
     const exportFile = req.files.export;
-    const exportName = exportFile.name;
+    const exportName = `${exportFile.name.replace(".zip", "")}-downloaded.zip`;
     const exportPath = path.join(uploadPath, exportName);
 
     await fs.emptyDir(uploadPath);
@@ -106,7 +123,8 @@ createScheduledImport(
         return res.status(500).send(err);
       }
 
-      importFromUploadedFile(exportFile, exportName, onBeforeImport, onAfterImport).then(
+      const fileStream = fs.createReadStream(exportPath);
+      importFromUploadedFile(fileStream, exportName, onBeforeImport, onAfterImport).then(
         (imported) => {
           if (imported) {
             console.log("Upload completed!");
@@ -123,7 +141,11 @@ createScheduledImport(
   app.post("/select-tables", (req, res) => {
     const tableSettings = req.body;
 
-    for (const [tableName, isEnabled] of Object.entries(tableSettings)) {
+    const enabledTables = Object.keys(tableSettings);
+    const allTables = Object.keys(getSelectedTableStatus());
+
+    for (const tableName of allTables) {
+      const isEnabled = enabledTables.includes(tableName);
       setTableOption(tableName, isEnabled);
     }
 
