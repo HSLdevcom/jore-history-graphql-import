@@ -16,4 +16,4 @@ RUN yarn install
 
 # Copy app source
 COPY . ${WORK}
-CMD yarn run start
+CMD yarn run start:production
