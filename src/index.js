@@ -18,7 +18,7 @@ import { importFromUploadedFile, createTaskForDefaultSource } from "./import";
 import { getLatestImportedFile } from "./importStatus";
 
 const { knex } = getKnex();
-const { SERVER_PORT = 3000, ADMIN_PASSWORD, PATH_PREFIX } = process.env;
+const { SERVER_PORT = 3000, ADMIN_PASSWORD } = process.env;
 
 const cwd = process.cwd();
 const uploadPath = path.join(cwd, "uploads");
@@ -88,11 +88,8 @@ createScheduledImport(
   app.engine("jsx", createEngine());
   app.set("view engine", "jsx");
   app.set("views", path.join(__dirname, "views"));
-  app.set("base", PATH_PREFIX);
 
-  const router = express.Router();
-
-  router.get("/", async (req, res) => {
+  app.get("/", async (req, res) => {
     const latestImportedFile = await getLatestImportedFile();
 
     res.render("admin", {
@@ -102,12 +99,12 @@ createScheduledImport(
     });
   });
 
-  router.post("/run-daily", (req, res) => {
+  app.post("/run-daily", (req, res) => {
     runScheduledImportNow("daily");
-    res.redirect(PATH_PREFIX);
+    res.redirect("/");
   });
 
-  router.post("/upload", async (req, res) => {
+  app.post("/upload", async (req, res) => {
     if (Object.keys(req.files).length === 0) {
       return res.status(400).send("No files were uploaded.");
     }
@@ -136,11 +133,11 @@ createScheduledImport(
         },
       );
 
-      res.redirect(PATH_PREFIX);
+      res.redirect("/");
     });
   });
 
-  router.post("/select-tables", (req, res) => {
+  app.post("/select-tables", (req, res) => {
     const tableSettings = req.body;
 
     const enabledTables = Object.keys(tableSettings);
@@ -151,10 +148,8 @@ createScheduledImport(
       setTableOption(tableName, isEnabled);
     }
 
-    res.redirect(PATH_PREFIX);
+    res.redirect("/");
   });
-
-  app.use(PATH_PREFIX, router);
 
   app.listen(SERVER_PORT, () => {
     console.log(`Server is listening on port ${SERVER_PORT}`);
