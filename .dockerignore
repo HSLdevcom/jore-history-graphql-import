@@ -5,6 +5,7 @@ data
 processed
 postgres-data
 downloads
+uploads
 tmp
 source
 .env
