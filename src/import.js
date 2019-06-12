@@ -6,6 +6,7 @@ import PQueue from "p-queue";
 import { createImportStream } from "./database";
 import { preprocess } from "./preprocess";
 import { fetchExportFromFTP } from "./sources/fetchExportFromFTP";
+import { DEFAULT_EXPORT_SOURCE } from "./constants";
 
 const sources = {
   daily: fetchExportFromFTP,
@@ -61,7 +62,6 @@ export const createTaskForDefaultSource = (
   onAfter = () => {},
 ) => async (onComplete = () => {}) => {
   const importId = "default-source";
-  const { DEFAULT_EXPORT_SOURCE = "daily" } = process.env;
   const downloadSource = sources[DEFAULT_EXPORT_SOURCE];
 
   if (!downloadSource) {

@@ -1,6 +1,5 @@
 import React, { useCallback } from "react";
-
-const { PATH_PREFIX } = process.env;
+import { PATH_PREFIX } from "../../constants";
 
 const SelectTables = ({ disabled = true, selectedTables }) => {
   const onChange = useCallback(() => {}, []);

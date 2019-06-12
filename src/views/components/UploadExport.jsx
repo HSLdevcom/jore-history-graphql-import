@@ -1,6 +1,5 @@
 import React from "react";
-
-const { PATH_PREFIX } = process.env;
+import { PATH_PREFIX } from "../../constants";
 
 const UploadExport = ({ disabled }) => {
   return (

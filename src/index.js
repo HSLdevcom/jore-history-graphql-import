@@ -16,9 +16,9 @@ import fs from "fs-extra";
 import basicAuth from "express-basic-auth";
 import { importFromUploadedFile, createTaskForDefaultSource } from "./import";
 import { getLatestImportedFile } from "./importStatus";
+import { SERVER_PORT, ADMIN_PASSWORD, PATH_PREFIX } from "./constants";
 
 const { knex } = getKnex();
-const { SERVER_PORT = 3000, ADMIN_PASSWORD, PATH_PREFIX } = process.env;
 
 const cwd = process.cwd();
 const uploadPath = path.join(cwd, "uploads");

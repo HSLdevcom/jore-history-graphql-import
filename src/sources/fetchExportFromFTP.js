@@ -3,17 +3,16 @@ import { orderBy, get } from "lodash";
 import path from "path";
 import fs from "fs-extra";
 import { getLatestImportedFile } from "../importStatus";
+import {
+  FTP_USERNAME,
+  FTP_PASSWORD,
+  FTP_HOST,
+  FTP_PORT,
+  FTP_PATH,
+  DEBUG,
+} from "../constants";
 
 const cwd = process.cwd();
-
-const {
-  FTP_USERNAME = "",
-  FTP_PASSWORD = "",
-  FTP_HOST = "",
-  FTP_PORT = "21",
-  FTP_PATH = "/",
-  DEBUG = "false",
-} = process.env;
 
 export async function fetchExportFromFTP() {
   if (!FTP_PASSWORD || !FTP_USERNAME || !FTP_HOST) {
