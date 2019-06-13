@@ -1,7 +1,5 @@
-import iconv from "iconv-lite";
 import through from "through2";
 import throughConcurrent from "through2-concurrent";
-import split from "split2";
 import { GEOMETRY_TABLE_NAME } from "./constants";
 
 const isWhitespaceOnly = /^\s*$/;
