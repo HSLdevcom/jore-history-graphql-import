@@ -30,3 +30,6 @@ export const DEBUG = secretsEnv.DEBUG || "false";
 export const SERVER_PORT = secretsEnv.SERVER_PORT || 3000;
 export const ADMIN_PASSWORD = secretsEnv.ADMIN_PASSWORD || "password";
 export const PATH_PREFIX = secretsEnv.PATH_PREFIX || "/";
+
+// There are some special considerations for the geometry table
+export const GEOMETRY_TABLE_NAME = "geometry";

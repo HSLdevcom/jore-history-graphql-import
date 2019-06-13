@@ -7,12 +7,11 @@ import through from "through2";
 import { parseLine } from "./util/parseLine";
 import { createPrimaryKey } from "./util/createPrimaryKey";
 import { map, collect } from "etl";
+import { GEOMETRY_TABLE_NAME } from "./constants";
+import throughConcurrent from "through2-concurrent";
 
 const { knex } = getKnex();
 const SCHEMA = "jore";
-
-// There are some special considerations for the geometry table
-const GEOMETRY_TABLE_NAME = "geometry";
 
 // Creates a function that groups lines by the `groupKeys` argument.
 // When the returned function is called with a line, it is either assigned
@@ -88,47 +87,70 @@ const createQueuedQuery = (
   tableName,
   primaryKeys,
   constraint,
-  onBeforeImport = () => {},
+  onBeforeQuery = () => {},
+  onAfterQuery = () => {},
 ) => {
-  queue.add(() =>
-    knex.transaction((trx) => {
-      onBeforeImport();
+  const promise = new Promise((resolve, reject) => {
+    onBeforeQuery();
 
-      return upsert({
-        knex,
-        schema: SCHEMA,
-        trx,
-        tableName,
-        itemData,
-        indices: primaryKeys,
-        constraint,
-      });
-    }),
-  );
+    knex
+      .transaction((trx) =>
+        upsert({
+          knex,
+          schema: SCHEMA,
+          trx,
+          tableName,
+          itemData,
+          indices: primaryKeys,
+          constraint,
+        }),
+      )
+      .then(() => {
+        onAfterQuery();
+        resolve();
+      })
+      .catch(reject);
+  });
+
+  queue.push(promise);
 };
 
-const createImportStreamForTable = async (tableName, queue) => {
-  const primaryKeys = getIndexForTable(tableName);
-  // Get the primary constraint for the table
-  const constraint = await getPrimaryConstraint(knex, tableName, SCHEMA);
+const createLineParser = (tableName) => {
+  const { fields, lineSchema = fields } = schema[tableName] || {};
+  let linesReceived = false;
 
-  // Collect 1000 items and pass them forward as a chunk.
-  // A chunk is emitted in a 500ms interval, so items
-  // need to arrive within this time to be included.
-  const chunkImportStream = collect(1000, 750);
+  const throughFunc =
+    tableName === GEOMETRY_TABLE_NAME
+      ? through.obj
+      : throughConcurrent.obj.bind(throughConcurrent.obj, { maxConcurrency: 50 });
 
-  let chunkIndex = 0;
+  return throughFunc((line, enc, cb) => {
+    if (!line) {
+      // line === null marks the end of the file. End the import stream
+      // to flush any items left in the collect buffer.
+      return cb(null, null);
+    }
 
-  chunkImportStream.pipe(
-    map((itemData) =>
-      createQueuedQuery(queue, itemData, tableName, primaryKeys, constraint, () => {
-        console.log(`${chunkIndex}. Importing ${itemData.length} lines to ${tableName}`);
-        chunkIndex++;
-      }),
-    ),
-  );
+    if (lineSchema) {
+      // This function runs on each line which would be too much to log.
+      // When receiving the first line of a table, log it and mark it as logged.
+      if (!linesReceived) {
+        console.log(`Importing ${tableName}...`);
+        linesReceived = true;
+      }
 
-  return chunkImportStream;
+      try {
+        // Parse the line and return it into the stream
+        const parsedLine = parseLine(line, lineSchema);
+        // Write the line to the relevant import stream.
+        return cb(null, parsedLine);
+      } catch (err) {
+        return cb(err);
+      }
+    }
+
+    return cb();
+  });
 };
 
 function createGeometryObjects(groups, primaryKeys) {
@@ -148,79 +170,62 @@ function createGeometryObjects(groups, primaryKeys) {
 }
 
 // Import the geometry data from the point_geometry data with conversion
-async function createImportStreamForGeometryTable(queue) {
+export async function createImportStreamForGeometryTable(queue) {
   const tableName = GEOMETRY_TABLE_NAME;
   const primaryKeys = getIndexForTable(tableName);
   const constraint = await getPrimaryConstraint(knex, tableName, SCHEMA);
 
+  const lineParser = createLineParser(tableName);
   const createGroup = createLineGrouper(primaryKeys);
-  const geometryGroupStream = through.obj((line, enc, cb) => cb(null, createGroup(line)));
 
   let chunkIndex = 0;
 
-  geometryGroupStream.pipe(collect(1000)).pipe(
-    map((batch) => {
-      // Convert the groups of points into geometry objects
-      const geometryItems = createGeometryObjects(batch, primaryKeys);
-      createQueuedQuery(queue, geometryItems, tableName, primaryKeys, constraint, () => {
-        console.log(
-          `${chunkIndex}. Importing ${geometryItems.length} lines to ${tableName}`,
+  lineParser
+    .pipe(through.obj((line, enc, cb) => cb(null, createGroup(line))))
+    .pipe(collect(1000))
+    .pipe(
+      map((batch) => {
+        // Convert the groups of points into geometry objects
+        const geometryItems = createGeometryObjects(batch, primaryKeys);
+        createQueuedQuery(
+          queue,
+          geometryItems,
+          tableName,
+          primaryKeys,
+          constraint,
+          () => {
+            console.log(
+              `${chunkIndex}. Importing ${geometryItems.length} lines to ${tableName}`,
+            );
+            chunkIndex++;
+          },
         );
-        chunkIndex++;
-      });
-    }),
-  );
+      }),
+    );
 
-  return geometryGroupStream;
+  return lineParser;
 }
 
-export async function createImportStream(selectedTables, queue) {
-  const tableStreams = {};
-
-  // Create import streams for each selected table.
-  for (const tableName of selectedTables) {
-    if (tableName === GEOMETRY_TABLE_NAME) {
-      tableStreams[GEOMETRY_TABLE_NAME] = await createImportStreamForGeometryTable(queue);
-    } else {
-      tableStreams[tableName] = await createImportStreamForTable(tableName, queue);
-    }
+export const createImportStreamForTable = async (tableName, queue) => {
+  if (tableName === GEOMETRY_TABLE_NAME) {
+    return createImportStreamForGeometryTable(queue);
   }
 
-  // When the first line for a table is received the table name is logged here.
-  const linesReceived = [];
+  const primaryKeys = getIndexForTable(tableName);
+  // Get the primary constraint for the table
+  const constraint = await getPrimaryConstraint(knex, tableName, SCHEMA);
 
-  return through.obj((lineObj, enc, cb) => {
-    const { tableName, line } = lineObj;
+  const lineParser = createLineParser(tableName);
+  let chunkIndex = 0;
 
-    // Some tables (ie geometry) use a separate lineSchema for parsing lines.
-    // The lines are then combined and inserted into the database according
-    // to the fields schema.
-    const { fields, lineSchema = fields } = schema[tableName] || {};
+  lineParser.pipe(collect(1000, 500)).pipe(
+    map((itemData) =>
+      createQueuedQuery(queue, itemData, tableName, primaryKeys, constraint, () => {
+        console.log(`${chunkIndex}. Importing ${itemData.length} lines to ${tableName}`);
+        chunkIndex++;
+      }),
+    ),
+  );
 
-    const stream = tableStreams[tableName];
-
-    if (line === null && stream) {
-      // line === null marks the end of the file. End the import stream
-      // to flush any items left in the collect buffer.
-      stream.end(null);
-    } else if (stream && lineSchema) {
-      try {
-        // This function runs on each line which would be too much to log.
-        // When receiving the first line of a table, log it and mark it as logged.
-        if (!linesReceived.includes(tableName)) {
-          console.log(`Importing ${tableName}...`);
-          linesReceived.push(tableName);
-        }
-
-        // Parse the line and write it to the import stream for the table.
-        const parsedLine = parseLine(line, lineSchema);
-        // Write the line to the relevant import stream.
-        stream.write(parsedLine);
-      } catch (err) {
-        return cb(err);
-      }
-    }
-
-    return cb();
-  });
-}
+  return lineParser;
+};

@@ -2,45 +2,69 @@
 // Downloads the export from the default source and runs the import.
 import { getSelectedTables } from "./selectedTables";
 import { startImport, importCompleted } from "./importStatus";
-import PQueue from "p-queue";
-import { createImportStream } from "./database";
-import { preprocess } from "./preprocess";
-import { fetchExportFromFTP } from "./sources/fetchExportFromFTP";
-import { DEFAULT_EXPORT_SOURCE } from "./constants";
+import { createImportStreamForTable } from "./database";
+import { processLine } from "./preprocess";
+import path from "path";
+import { Open } from "unzipper";
+import schema from "./schema";
+import iconv from "iconv-lite";
+import split from "split2";
 
-const sources = {
-  daily: fetchExportFromFTP,
-};
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
-async function importFile(fileStream, fileName) {
+const getTableNameFromFileName = (filename) =>
+  Object.entries(schema).find(
+    ([, { filename: schemaFilename }]) => filename === schemaFilename,
+  )[0];
+
+export async function importFile(filePath) {
   const execStart = process.hrtime();
-  const { selectedTables, selectedFiles } = getSelectedTables();
+  const { selectedFiles } = getSelectedTables();
+  const fileName = path.basename(filePath);
 
   try {
-    await new Promise(async (resolve, reject) => {
-      await startImport(fileName);
+    await startImport(fileName);
+    const queue = [];
 
-      const queue = new PQueue({ concurrency: 20 });
-      const importerStream = await createImportStream(selectedTables, queue);
+    console.log("Unpacking and processing the archive...");
+    const directory = await Open.file(filePath);
+    const chosenFiles = directory.files.filter((file) =>
+      selectedFiles.includes(file.path),
+    );
 
-      console.log("Unpacking and processing the archive...");
+    const filePromises = chosenFiles.map(
+      (file) =>
+        new Promise(async (resolve, reject) => {
+          const tableName = getTableNameFromFileName(file.path);
+          const importStream = await createImportStreamForTable(tableName, queue);
 
-      preprocess(fileStream, selectedFiles)
-        .pipe(importerStream)
-        .on("finish", () => {
-          setTimeout(() => {
-            resolve(queue.onEmpty());
-          }, 1000);
-        })
-        .on("error", reject);
-    });
+          file
+            .stream()
+            .pipe(iconv.decodeStream("ISO-8859-1"))
+            .pipe(iconv.encodeStream("utf8"))
+            .pipe(split())
+            .pipe(processLine(tableName))
+            .pipe(importStream)
+            .on("finish", () => {
+              resolve(tableName);
+            })
+            .on("error", reject);
+        }),
+    );
+
+    console.log("Importing the data...");
+    await Promise.all(filePromises);
+
+    console.log("Finishing up...");
+    await delay(1000);
+    await Promise.all(queue);
 
     const [execDuration] = process.hrtime(execStart);
     await importCompleted(fileName, true, execDuration);
 
-    console.log(
-      `${selectedTables.join(", ")} from ${fileName} imported in ${execDuration}s`,
-    );
+    console.log(`${fileName} imported in ${execDuration}s`);
   } catch (err) {
     const [execDuration] = process.hrtime(execStart);
 
@@ -49,76 +73,4 @@ async function importFile(fileStream, fileName) {
 
     await importCompleted(fileName, false, execDuration);
   }
-}
-
-// Downloads an export archive from the `source` function and runs the import.
-// source should return a promise that resolves to `{name, file}`. `name` is the
-// name of the downloaded archive we're about to import and `file` is a readable stream.
-
-// onBefore and onAfter control the global "isImporting" state, while the onComplete
-// callback is for the task scheduler.
-export const createTaskForDefaultSource = (
-  onBefore = () => {},
-  onAfter = () => {},
-) => async (onComplete = () => {}) => {
-  const importId = "default-source";
-  const downloadSource = sources[DEFAULT_EXPORT_SOURCE];
-
-  if (!downloadSource) {
-    console.log(`${DEFAULT_EXPORT_SOURCE} is not defined as a source for the importer.`);
-    onComplete();
-    return;
-  }
-
-  if (onBefore(importId)) {
-    try {
-      console.log(`Importing from source ${DEFAULT_EXPORT_SOURCE}.`);
-      await importFromRemoteRepository(downloadSource);
-    } catch (err) {
-      console.log(err);
-    }
-
-    onAfter(importId);
-  }
-
-  onComplete();
-};
-
-export async function importFromUploadedFile(
-  file,
-  name,
-  onBefore = () => {},
-  onAfter = () => {},
-) {
-  const importId = "uploaded-file";
-
-  if (!file) {
-    console.log("Nothing to import.");
-    return false;
-  }
-
-  if (onBefore(importId)) {
-    try {
-      await importFile(file, name);
-    } catch (err) {
-      console.error(err);
-    }
-
-    onAfter(importId);
-  }
-
-  return true;
-}
-
-async function importFromRemoteRepository(source) {
-  console.log("Downloading import data...");
-  const fileToImport = await source();
-
-  if (!fileToImport) {
-    console.log("Nothing to import.");
-    return Promise.resolve(false);
-  }
-
-  const { name, file } = fileToImport;
-  return importFile(file, name);
 }

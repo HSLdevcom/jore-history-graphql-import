@@ -75,8 +75,7 @@ export async function fetchExportFromFTP() {
       console.log(`Export ${newestExportName} already downloaded.`);
     }
 
-    const fileStream = fs.createReadStream(downloadPath);
-    return { file: fileStream, name: newestExportName };
+    return downloadPath;
   }
 
   return null;

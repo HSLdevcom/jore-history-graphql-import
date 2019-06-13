@@ -1,18 +1,12 @@
 import iconv from "iconv-lite";
 import through from "through2";
+import throughConcurrent from "through2-concurrent";
 import split from "split2";
-import { Parse } from "unzipper";
-import { PassThrough } from "stream";
-import schema from "./schema";
+import { GEOMETRY_TABLE_NAME } from "./constants";
 
 const isWhitespaceOnly = /^\s*$/;
 
-const getTableNameFromFileName = (filename) =>
-  Object.entries(schema).find(
-    ([, { filename: schemaFilename }]) => filename === schemaFilename,
-  )[0];
-
-function replaceLinebreaks() {
+function createLinebreaksReplacer() {
   let lines = [];
 
   return (line, lineLength) => {
@@ -55,13 +49,18 @@ function replaceGeometryIndexes() {
   };
 }
 
-function processLines(tableName) {
+export function processLine(tableName) {
   const geometryReplacer = replaceGeometryIndexes();
-  const lineBreaksReplacer = replaceLinebreaks();
+  const lineBreaksReplacer = createLinebreaksReplacer();
 
   let maxLength = 0;
 
-  return through.obj(function createLine(chunk, enc, cb) {
+  const throughFunc =
+    tableName === GEOMETRY_TABLE_NAME
+      ? through.obj
+      : throughConcurrent.obj.bind(throughConcurrent.obj, { maxConcurrency: 50 });
+
+  return throughFunc(function createLine(chunk, enc, cb) {
     const str = enc === "buffer" ? chunk.toString("utf8") : chunk;
 
     if (str && !isWhitespaceOnly.test(str)) {
@@ -74,47 +73,14 @@ function processLines(tableName) {
       if (linebreaksReplacedStr) {
         let resultLine = linebreaksReplacedStr;
 
-        if (tableName === "geometry") {
+        if (tableName === GEOMETRY_TABLE_NAME) {
           resultLine = geometryReplacer(linebreaksReplacedStr);
         }
 
-        this.push({ tableName, line: resultLine });
+        this.push(resultLine);
       }
     }
 
     cb();
   });
-}
-
-export function preprocess(archiveStream, filesToDownload = []) {
-  const returnStream = new PassThrough({ objectMode: true });
-
-  archiveStream
-    .pipe(Parse())
-    .pipe(
-      through.obj((entry, enc, cb) => {
-        if (filesToDownload.includes(entry.path)) {
-          const tableName = getTableNameFromFileName(entry.path);
-
-          entry
-            .pipe(iconv.decodeStream("ISO-8859-1"))
-            .pipe(iconv.encodeStream("utf8"))
-            .pipe(split())
-            .pipe(processLines(tableName))
-            .on("data", (line) => returnStream.push(line))
-            .on("finish", () => {
-              returnStream.push({ tableName, line: null });
-              cb();
-            })
-            .on("error", (err) => cb(err));
-        } else {
-          entry.autodrain();
-          cb();
-        }
-      }),
-    )
-    .on("finish", () => returnStream.end())
-    .on("error", (err) => returnStream.destroy(err));
-
-  return returnStream;
 }
