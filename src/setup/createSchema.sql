@@ -8,7 +8,7 @@ DO $$
         WHEN duplicate_object THEN NULL;
     END $$;
 
-CREATE TABLE IF NOT EXISTS jore.import_status
+CREATE TABLE IF NOT EXISTS import_status
 (
     filename     VARCHAR(255) PRIMARY KEY,
     import_start TIMESTAMP NOT NULL DEFAULT now(),

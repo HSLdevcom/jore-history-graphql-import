@@ -14,6 +14,27 @@ const { knex } = getKnex();
 const SCHEMA = "jore";
 const NS_PER_SEC = 1e9; // For tracking performance
 
+// Create the upsert query with a transaction,
+const createImportQuery = (tableName, queue, primaryKeys, constraint) => async (data) => {
+  let queryResult;
+  const time = process.hrtime();
+
+  try {
+    queryResult = await knex.transaction((trx) =>
+      upsert({ trx, tableName, data, indices: primaryKeys, constraint }),
+    );
+  } catch (err) {
+    queryResult = false;
+    console.log(err);
+  }
+
+  const [execS, execNs] = process.hrtime(time);
+  const ms = (execS * NS_PER_SEC + execNs) / 1000000;
+  console.log(`Records of ${tableName} imported in ${ms} ms`);
+
+  return queryResult;
+};
+
 // Creates a function that groups lines by the `groupKeys` argument.
 // When the returned function is called with a line, it is either assigned
 // to the current group or it becomes the start of a new group. When a group
@@ -82,40 +103,6 @@ function getIndexForTable(tableName) {
   return uniq([...indices, ...compoundPrimary]);
 }
 
-const createQueuedQuery = (
-  queue,
-  itemData,
-  tableName,
-  primaryKeys,
-  constraint,
-  onBeforeQuery = () => {},
-  onAfterQuery = () => {},
-) => {
-  const promise = new Promise((resolve, reject) => {
-    const val = onBeforeQuery();
-
-    knex
-      .transaction((trx) =>
-        upsert({
-          knex,
-          schema: SCHEMA,
-          trx,
-          tableName,
-          itemData,
-          indices: primaryKeys,
-          constraint,
-        }),
-      )
-      .then(() => {
-        onAfterQuery(val);
-        resolve();
-      })
-      .catch(reject);
-  });
-
-  queue.push(promise);
-};
-
 const createLineParser = (tableName) => {
   const { fields, lineSchema = fields } = schema[tableName] || {};
   let linesReceived = false;
@@ -171,15 +158,11 @@ function createGeometryObjects(groups, primaryKeys) {
 }
 
 // Import the geometry data from the point_geometry data with conversion
-export async function createImportStreamForGeometryTable(queue) {
+export async function createImportStreamForGeometryTable(queue, primaryKeys, constraint) {
   const tableName = GEOMETRY_TABLE_NAME;
-  const primaryKeys = getIndexForTable(tableName);
-  const constraint = await getPrimaryConstraint(knex, tableName, SCHEMA);
-
+  const importer = createImportQuery(tableName, queue, primaryKeys, constraint);
   const lineParser = createLineParser(tableName);
   const createGroup = createLineGrouper(primaryKeys);
-
-  let chunkIndex = 0;
 
   lineParser
     .pipe(through.obj((line, enc, cb) => cb(null, createGroup(line))))
@@ -188,19 +171,7 @@ export async function createImportStreamForGeometryTable(queue) {
       map((batch) => {
         // Convert the groups of points into geometry objects
         const geometryItems = createGeometryObjects(batch, primaryKeys);
-        createQueuedQuery(
-          queue,
-          geometryItems,
-          tableName,
-          primaryKeys,
-          constraint,
-          () => {
-            console.log(
-              `${chunkIndex}. Importing ${geometryItems.length} lines to ${tableName}`,
-            );
-            chunkIndex++;
-          },
-        );
+        queue.add(() => importer(geometryItems));
       }),
     );
 
@@ -208,16 +179,16 @@ export async function createImportStreamForGeometryTable(queue) {
 }
 
 export const createImportStreamForTable = async (tableName, queue) => {
-  if (tableName === GEOMETRY_TABLE_NAME) {
-    return createImportStreamForGeometryTable(queue);
-  }
-
   const primaryKeys = getIndexForTable(tableName);
   // Get the primary constraint for the table
   const constraint = await getPrimaryConstraint(knex, tableName, SCHEMA);
 
+  if (tableName === GEOMETRY_TABLE_NAME) {
+    return createImportStreamForGeometryTable(queue, primaryKeys, constraint);
+  }
+
+  const importer = createImportQuery(tableName, queue, primaryKeys, constraint);
   const lineParser = createLineParser(tableName);
-  let chunkIndex = 0;
 
   lineParser.pipe(collect(1000, 250)).pipe(
     map((itemData) => {
@@ -227,26 +198,7 @@ export const createImportStreamForTable = async (tableName, queue) => {
         insertItems = uniqBy(itemData, (item) => createPrimaryKey(item, primaryKeys));
       }
 
-      return createQueuedQuery(
-        queue,
-        insertItems,
-        tableName,
-        primaryKeys,
-        constraint,
-        () => {
-          /*console.log(
-            `${chunkIndex}. Importing ${itemData.length} lines to ${tableName}`,
-          );*/
-          chunkIndex++;
-          return [process.hrtime(), chunkIndex - 1];
-        },
-        ([time, chunkIdx]) => {
-          const [execS, execNs] = process.hrtime(time);
-
-          const ms = (execS * NS_PER_SEC + execNs) / 1000000;
-          console.log(`Chunk ${chunkIdx} of ${tableName} imported in ${ms} ms`);
-        },
-      );
+      queue.add(() => importer(insertItems));
     }),
   );
 

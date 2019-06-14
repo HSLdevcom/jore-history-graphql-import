@@ -4,7 +4,7 @@ import { omit } from "lodash";
 const { knex } = getKnex();
 
 const statusTable = "import_status";
-const schema = "jore";
+const schema = "public";
 
 export async function getLatestImportedFile() {
   return knex

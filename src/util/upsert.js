@@ -1,21 +1,24 @@
+import { getKnex } from "../knex";
+
+const { knex } = getKnex();
+const schema = "jore";
+
 // "Upsert" function for PostgreSQL. Inserts or updates lines in bulk. Insert if
 // the primary key for the line is available, update otherwise.
 
 export async function upsert({
-  knex,
-  schema,
   trx,
   tableName,
-  itemData,
+  data,
   indices: primaryIndices = [],
   constraint = "",
 }) {
   let items = [];
 
-  if (Array.isArray(itemData)) {
-    items = itemData;
-  } else if (itemData) {
-    items = [itemData];
+  if (Array.isArray(data)) {
+    items = data;
+  } else if (data) {
+    items = [data];
   }
 
   if (items.length === 0) {
@@ -23,7 +26,7 @@ export async function upsert({
   }
 
   // Prepend the schema name to the table. This is more convenient in raw queries
-  // and batch queries where Knex doesn't seem to use the withSchema function.
+  // and batch queries where Knex doesn't use the withSchema function.
   const tableId = `${schema}.${tableName}`;
 
   function batchInsert(rows) {
@@ -34,7 +37,7 @@ export async function upsert({
     return knex.batchInsert(tableId, rows, 1000);
   }
 
-  // Just insert if we don't have any indices
+  // Just insert if we don't have any constraints
   if (primaryIndices.length === 0) {
     return batchInsert(items);
   }

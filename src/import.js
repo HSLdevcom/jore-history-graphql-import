@@ -9,6 +9,7 @@ import { Open } from "unzipper";
 import schema from "./schema";
 import iconv from "iconv-lite";
 import split from "split2";
+import Queue from "p-queue";
 
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -26,7 +27,7 @@ export async function importFile(filePath) {
 
   try {
     await startImport(fileName);
-    const queue = [];
+    const queue = new Queue({ concurrency: 20 });
 
     console.log("Unpacking and processing the archive...");
     const directory = await Open.file(filePath);
@@ -58,8 +59,8 @@ export async function importFile(filePath) {
     await Promise.all(filePromises);
 
     console.log("Finishing up...");
-    await delay(1000);
-    await Promise.all(queue);
+    await delay(3000);
+    await queue.onEmpty();
 
     const [execDuration] = process.hrtime(execStart);
     await importCompleted(fileName, true, execDuration);
