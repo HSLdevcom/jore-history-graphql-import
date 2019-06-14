@@ -41,6 +41,7 @@
     "knex": "^0.16.2",
     "knex-postgis": "^0.7.0",
     "lodash": "^4.17.10",
+    "lru-cache": "^5.1.1",
     "p-map": "^2.1.0",
     "p-queue": "^3.0.0",
     "pg": "^7.7.1",
@@ -50,6 +51,7 @@
     "string-to-stream": "^1.1.1",
     "through2": "^3.0.1",
     "through2-concurrent": "^2.0.0",
+    "unique-stream": "^2.3.1",
     "unzipper": "^0.10.0"
   },
   "devDependencies": {

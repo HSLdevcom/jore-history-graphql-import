@@ -1,6 +1,6 @@
 import { upsert } from "./util/upsert";
 import schema from "./schema";
-import { pick, orderBy, get, uniq } from "lodash";
+import { pick, orderBy, get, uniq, uniqBy } from "lodash";
 import { getPrimaryConstraint } from "./util/getPrimaryConstraint";
 import { getKnex } from "./knex";
 import through from "through2";
@@ -12,6 +12,7 @@ import throughConcurrent from "through2-concurrent";
 
 const { knex } = getKnex();
 const SCHEMA = "jore";
+const NS_PER_SEC = 1e9; // For tracking performance
 
 // Creates a function that groups lines by the `groupKeys` argument.
 // When the returned function is called with a line, it is either assigned
@@ -91,7 +92,7 @@ const createQueuedQuery = (
   onAfterQuery = () => {},
 ) => {
   const promise = new Promise((resolve, reject) => {
-    onBeforeQuery();
+    const val = onBeforeQuery();
 
     knex
       .transaction((trx) =>
@@ -106,7 +107,7 @@ const createQueuedQuery = (
         }),
       )
       .then(() => {
-        onAfterQuery();
+        onAfterQuery(val);
         resolve();
       })
       .catch(reject);
@@ -218,13 +219,35 @@ export const createImportStreamForTable = async (tableName, queue) => {
   const lineParser = createLineParser(tableName);
   let chunkIndex = 0;
 
-  lineParser.pipe(collect(1000, 500)).pipe(
-    map((itemData) =>
-      createQueuedQuery(queue, itemData, tableName, primaryKeys, constraint, () => {
-        console.log(`${chunkIndex}. Importing ${itemData.length} lines to ${tableName}`);
-        chunkIndex++;
-      }),
-    ),
+  lineParser.pipe(collect(1000, 250)).pipe(
+    map((itemData) => {
+      let insertItems = itemData;
+
+      if (primaryKeys.length !== 0) {
+        insertItems = uniqBy(itemData, (item) => createPrimaryKey(item, primaryKeys));
+      }
+
+      return createQueuedQuery(
+        queue,
+        insertItems,
+        tableName,
+        primaryKeys,
+        constraint,
+        () => {
+          /*console.log(
+            `${chunkIndex}. Importing ${itemData.length} lines to ${tableName}`,
+          );*/
+          chunkIndex++;
+          return [process.hrtime(), chunkIndex - 1];
+        },
+        ([time, chunkIdx]) => {
+          const [execS, execNs] = process.hrtime(time);
+
+          const ms = (execS * NS_PER_SEC + execNs) / 1000000;
+          console.log(`Chunk ${chunkIdx} of ${tableName} imported in ${ms} ms`);
+        },
+      );
+    }),
   );
 
   return lineParser;
