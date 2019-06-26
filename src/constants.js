@@ -30,8 +30,14 @@ const secretsEnv = mapValues(process.env, (value, key) => {
   return value;
 });
 
-export const PG_CONNECTION_STRING =
-  secretsEnv.JORE_PG_CONNECTION_STRING || secretsEnv.PG_CONNECTION_STRING || "";
+export const JORE_PG_CONNECTION = {
+  host: secretsEnv.JORE_POSTGRES_HOST,
+  port: secretsEnv.JORE_POSTGRES_PORT,
+  user: secretsEnv.JORE_POSTGRES_USER,
+  password: secretsEnv.JORE_POSTGRES_PASSWORD,
+  database: secretsEnv.JORE_POSTGRES_DB,
+}
+
 export const FTP_USERNAME = secretsEnv.FTP_USERNAME || "";
 export const FTP_PASSWORD = secretsEnv.FTP_PASSWORD || "";
 export const FTP_HOST = secretsEnv.FTP_HOST || "";
