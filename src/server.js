@@ -27,6 +27,10 @@ export const server = (isImporting, onBeforeImport, onAfterImport) => {
 
   app.use(express.urlencoded({ extended: true }));
 
+  app.get("/check", (req, res) => {
+    res.send("ok");
+  });
+
   app.use(
     basicAuth({
       challenge: true,
