@@ -28,7 +28,7 @@ export const server = (isImporting, onBeforeImport, onAfterImport) => {
   app.use(express.urlencoded({ extended: true }));
 
   app.get("/check", (req, res) => {
-    res.send("ok");
+    res.status(200).send("ok");
   });
 
   app.use(
