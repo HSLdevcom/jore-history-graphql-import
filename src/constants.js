@@ -1,11 +1,27 @@
-import { mapValues } from "lodash";
+import { mapValues, orderBy } from "lodash";
 import fs from "fs-extra";
 
+const SECRETS_PATH = "/run/secrets/";
+
 // For any env variable with the value of "secret", resolve the actual value from the
-// associated secrets file. Using sync fs methods for the sake of simplicity.
-// Since this will only run once when staring the app it's OK.
+// associated secrets file. Using sync fs methods for the sake of simplicity,
+// since this will only run once when staring the app, sync is OK.
+const secrets = (fs.existsSync(SECRETS_PATH) && fs.readdirSync(SECRETS_PATH)) || [];
+
 const secretsEnv = mapValues(process.env, (value, key) => {
-  const filepath = `/run/secrets/${key}`;
+  const matchingSecrets = secrets.filter((secretFile) => secretFile.startsWith(key));
+
+  const currentSecret =
+    orderBy(
+      matchingSecrets,
+      (secret) => {
+        const secretVersion = parseInt(secret[secret.length - 1], 10);
+        return isNaN(secretVersion) ? 0 : secretVersion;
+      },
+      "desc",
+    )[0] || null;
+
+  const filepath = SECRETS_PATH + currentSecret;
 
   if (fs.existsSync(filepath)) {
     return (fs.readFileSync(filepath, { encoding: "utf8" }) || "").trim();
