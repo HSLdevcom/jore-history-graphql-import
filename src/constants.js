@@ -49,6 +49,10 @@ export const DEBUG = secretsEnv.DEBUG || "false";
 export const SERVER_PORT = secretsEnv.SERVER_PORT || 3000;
 export const ADMIN_PASSWORD = secretsEnv.ADMIN_PASSWORD || "password";
 export const PATH_PREFIX = secretsEnv.PATH_PREFIX || "/";
+export const AZURE_STORAGE_ACCOUNT = secretsEnv.AZURE_STORAGE_ACCOUNT || "";
+export const AZURE_STORAGE_KEY = secretsEnv.AZURE_STORAGE_KEY || "";
+export const AZURE_UPLOAD_CONTAINER =
+  secretsEnv.AZURE_UPLOAD_CONTAINER || "jorehistorydumps";
 
 // There are some special considerations for the geometry table
 export const GEOMETRY_TABLE_NAME = "geometry";

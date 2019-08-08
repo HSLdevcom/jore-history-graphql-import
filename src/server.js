@@ -10,12 +10,16 @@ import { getSelectedTableStatus, setTableOption } from "./selectedTables";
 import { runScheduledImportNow } from "./schedule";
 import fs from "fs-extra";
 import { importFile } from "./import";
+import { createDbDump } from "./util/createDbDump";
+import { uploadDbDump } from "./util/uploadDbDump";
 
 const cwd = process.cwd();
 const uploadPath = path.join(cwd, "uploads");
 
 export const server = (isImporting, onBeforeImport, onAfterImport) => {
   const app = express();
+  
+  let manualDumpInProgress = false;
 
   app.use(
     fileUpload({
@@ -46,6 +50,7 @@ export const server = (isImporting, onBeforeImport, onAfterImport) => {
     const latestImportedFile = await getLatestImportedFile();
 
     res.render("admin", {
+      manualDumpInProgress,
       isImporting: isImporting(),
       latestImportedFile,
       selectedTables: getSelectedTableStatus(),
@@ -104,6 +109,20 @@ export const server = (isImporting, onBeforeImport, onAfterImport) => {
       setTableOption(tableName, isEnabled);
     }
 
+    res.redirect(PATH_PREFIX);
+  });
+  
+  app.post("/dump-upload", (req, res) => {
+    if( !manualDumpInProgress ) {
+      manualDumpInProgress = true;
+      
+      createDbDump()
+        .then(uploadDbDump)
+        .then(() => {
+          manualDumpInProgress = false;
+        });
+    }
+    
     res.redirect(PATH_PREFIX);
   });
 

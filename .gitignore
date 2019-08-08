@@ -36,3 +36,4 @@ downloads
 source/*.zip
 .env
 uploads
+dumps

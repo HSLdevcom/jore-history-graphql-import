@@ -10,6 +10,8 @@ import schema from "./schema";
 import iconv from "iconv-lite";
 import split from "split2";
 import Queue from "p-queue";
+import { createDbDump } from "./util/createDbDump";
+import { uploadDbDump } from "./util/uploadDbDump";
 
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -61,6 +63,9 @@ export async function importFile(filePath) {
     console.log("Finishing up...");
     await delay(3000);
     await queue.onEmpty();
+  
+    const dumpFilePath = await createDbDump();
+    await uploadDbDump(dumpFilePath);
 
     const [execDuration] = process.hrtime(execStart);
     await importCompleted(fileName, true, execDuration);
