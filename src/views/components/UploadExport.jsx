@@ -7,7 +7,7 @@ const UploadExport = ({ disabled }) => {
       <h3>Upload an export archive</h3>
       <form
         id="export-upload"
-        action={`${PATH_PREFIX}upload`}
+        action={`${PATH_PREFIX}upload/`}
         method="post"
         encType="multipart/form-data"
       >

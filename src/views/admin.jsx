@@ -28,7 +28,7 @@ const AdminView = ({
       {manualDumpInProgress && <p>Dump in progress.</p>}
       {isImporting && <p>Dump disabled during import.</p>}
 
-      <form action={`${PATH_PREFIX}dump-upload`} method="post">
+      <form action={`${PATH_PREFIX}dump-upload/`} method="post">
         <input
           disabled={isImporting || manualDumpInProgress}
           type="submit"

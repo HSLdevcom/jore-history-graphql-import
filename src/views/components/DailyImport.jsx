@@ -11,7 +11,7 @@ const DailyImport = ({ disabled }) => {
         import is running. The task will download the latest daily export, but will not
         import the same export twice.
       </p>
-      <form action={`${PATH_PREFIX}run-daily`} method="post">
+      <form action={`${PATH_PREFIX}run-daily/`} method="post">
         <input disabled={disabled} type="submit" value="Run import task" />
       </form>
     </>
