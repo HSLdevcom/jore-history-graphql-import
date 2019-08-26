@@ -1,5 +1,7 @@
 FROM node:12
 
+RUN apt-get update && apt-get -y install postgresql-client && rm -rf /var/lib/apt/lists/*
+
 ENV WORK /opt/jore
 
 WORKDIR ${WORK}
