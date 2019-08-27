@@ -1,6 +1,11 @@
 FROM node:12
 
-RUN apt-get update && apt-get -y install postgresql-client && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && \
+  apt-get -y install git build-essential software-properties-common && \
+  # Needs new versions from the Buster repo, otherwise the matcher won't work
+  apt-add-repository 'deb http://ftp.us.debian.org/debian buster main contrib non-free' && \
+  apt-get update && \
+  apt-get -y install postgresql-client-11 && rm -rf /var/lib/apt/lists/*
 
 ENV WORK /opt/jore
 
