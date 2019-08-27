@@ -63,7 +63,7 @@ export async function importFile(filePath) {
     console.log("Finishing up...");
     await delay(3000);
     await queue.onEmpty();
-  
+
     const dumpFilePath = await createDbDump();
     await uploadDbDump(dumpFilePath);
 

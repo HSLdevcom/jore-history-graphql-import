@@ -18,7 +18,7 @@ const uploadPath = path.join(cwd, "uploads");
 
 export const server = (isImporting, onBeforeImport, onAfterImport) => {
   const app = express();
-  
+
   let manualDumpInProgress = false;
 
   app.use(
@@ -82,11 +82,9 @@ export const server = (isImporting, onBeforeImport, onAfterImport) => {
         return res.status(500).send(err);
       }
 
-      const fileStream = fs.createReadStream(exportPath);
-
       if (onBeforeImport(importId)) {
         try {
-          await importFile(fileStream, exportName);
+          await importFile(exportPath);
         } catch (importError) {
           console.error(importError);
         }
@@ -111,18 +109,18 @@ export const server = (isImporting, onBeforeImport, onAfterImport) => {
 
     res.redirect(PATH_PREFIX);
   });
-  
+
   app.post("/dump-upload", (req, res) => {
-    if( !manualDumpInProgress ) {
+    if (!manualDumpInProgress) {
       manualDumpInProgress = true;
-      
+
       createDbDump()
         .then(uploadDbDump)
         .then(() => {
           manualDumpInProgress = false;
         });
     }
-    
+
     res.redirect(PATH_PREFIX);
   });
 
