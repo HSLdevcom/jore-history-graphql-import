@@ -91,9 +91,9 @@ export const server = (isImporting, onBeforeImport, onAfterImport) => {
 
         onAfterImport(importId);
       }
-
-      res.redirect(PATH_PREFIX);
     });
+  
+    res.redirect(PATH_PREFIX);
   });
 
   app.post("/select-tables", (req, res) => {
