@@ -37,3 +37,4 @@ source/*.zip
 .env
 uploads
 dumps
+secrets
