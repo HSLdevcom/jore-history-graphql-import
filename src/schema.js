@@ -27,7 +27,6 @@ module.exports = {
         length: 20,
         name: "name_fi",
         type: "string",
-        notNullable: true,
       },
       {
         length: 20,
@@ -55,7 +54,6 @@ module.exports = {
         name: "short_id",
         type: "string",
         index: true,
-        notNullable: true,
       },
       { length: 8 },
       { length: 8 },
@@ -129,7 +127,6 @@ module.exports = {
         length: 40,
         name: "name_fi",
         type: "string",
-        notNullable: true,
       },
       {
         length: 40,
@@ -155,7 +152,6 @@ module.exports = {
         length: 40,
         name: "name_fi",
         type: "string",
-        notNullable: true,
       },
       {
         length: 40,
@@ -181,7 +177,6 @@ module.exports = {
         length: 60,
         name: "name_fi",
         type: "string",
-        notNullable: true,
       },
       {
         length: 60,
@@ -192,7 +187,6 @@ module.exports = {
         length: 30,
         name: "origin_fi",
         type: "string",
-        notNullable: true,
       },
       {
         length: 30,
@@ -257,7 +251,6 @@ module.exports = {
         length: 60,
         name: "name_fi",
         type: "string",
-        notNullable: true,
       },
       {
         length: 60,
@@ -268,13 +261,11 @@ module.exports = {
         length: 2,
         name: "type",
         type: "string",
-        notNullable: true,
       },
       {
         length: 20,
         name: "origin_fi",
         type: "string",
-        notNullable: true,
       },
       {
         length: 20,
@@ -293,13 +284,11 @@ module.exports = {
         length: 5,
         name: "route_length",
         type: "integer",
-        notNullable: true,
       },
       {
         length: 20,
         name: "destination_fi",
         type: "string",
-        notNullable: true,
       },
       {
         length: 20,
@@ -368,7 +357,6 @@ module.exports = {
         length: 3,
         name: "duration",
         type: "integer",
-        notNullable: true,
       },
       {
         length: 3,
@@ -380,13 +368,11 @@ module.exports = {
         length: 6,
         name: "distance_from_previous",
         type: "integer",
-        notNullable: true,
       },
       {
         length: 6,
         name: "distance_from_start",
         type: "integer",
-        notNullable: true,
       },
       {
         length: 1,
@@ -664,7 +650,7 @@ module.exports = {
       },
       {
         length: 4,
-        name: "admin.html",
+        name: "index",
         type: "integer",
         notNullable: true,
       },

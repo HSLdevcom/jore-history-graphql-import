@@ -21,7 +21,7 @@ const createImportQuery = (tableName, queue, primaryKeys, constraint) => async (
 
   try {
     queryResult = await knex.transaction((trx) =>
-      upsert({ trx, tableName, data, indices: primaryKeys, constraint }),
+      upsert({ trx, tableName, data, primaryKeys, constraint }),
     );
   } catch (err) {
     queryResult = false;
@@ -186,7 +186,7 @@ export const createImportStreamForTable = async (tableName, queue) => {
   if (tableName === GEOMETRY_TABLE_NAME) {
     return createImportStreamForGeometryTable(queue, primaryKeys, constraint);
   }
-
+  
   const importer = createImportQuery(tableName, queue, primaryKeys, constraint);
   const lineParser = createLineParser(tableName);
 

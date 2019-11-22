@@ -10,7 +10,7 @@ export async function upsert({
   trx,
   tableName,
   data,
-  indices: primaryIndices = [],
+  primaryKeys = [],
   constraint = "",
 }) {
   let items = [];
@@ -38,7 +38,7 @@ export async function upsert({
   }
 
   // Just insert if we don't have any constraints
-  if (primaryIndices.length === 0) {
+  if (!constraint && primaryKeys.length === 0) {
     return batchInsert(items);
   }
 
@@ -87,14 +87,14 @@ export async function upsert({
 
   // Create the string of update values for the conflict case
   const updateValues = itemKeys
-    .filter((key) => !primaryIndices.includes(key)) // Don't update primary indices
+    .filter((key) => !primaryKeys.includes(key)) // Don't update primary indices
     .map((key) => knex.raw("?? = EXCLUDED.??", [key, key]).toString())
     .join(",\n");
 
   // Get the keys that the ON CONFLICT should check for
   // If a constraint is set, choose that.
   const onConflictKeys = !constraint
-    ? `(${primaryIndices.map(() => "??").join(",")})`
+    ? `(${primaryKeys.map(() => "??").join(",")})`
     : "ON CONSTRAINT ??";
 
   const upsertQuery = `
@@ -107,7 +107,7 @@ ${updateValues};
     tableId,
     ...itemKeys,
     ...insertValues,
-    ...(!constraint ? primaryIndices : [constraint]),
+    ...(!constraint ? primaryKeys : [constraint]),
   ];
 
   const dbInterface = trx || knex;
