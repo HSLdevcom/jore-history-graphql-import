@@ -84,6 +84,7 @@ export async function importFile(filePath) {
     console.error(err);
 
     await importCompleted(fileName, false, execDuration);
+    return false;
   }
 
   return true;

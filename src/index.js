@@ -62,6 +62,10 @@ createScheduledImport("daily", DAILY_TASK_SCHEDULE, async (onComplete = () => {}
       success = await dailyTask(downloadSource);
       tries++;
     }
+
+    if (!success) {
+      process.exit(1);
+    }
   }
 
   onAfterImport(importId);
