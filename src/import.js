@@ -12,6 +12,7 @@ import split from "split2";
 import Queue from "p-queue";
 import { createDbDump } from "./util/createDbDump";
 import { uploadDbDump } from "./util/uploadDbDump";
+import { catchFileError } from "./util/catchFileError";
 
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -27,16 +28,21 @@ export async function importFile(filePath) {
   const { selectedFiles } = getSelectedTables();
   const fileName = path.basename(filePath);
 
-  try {
-    await startImport(fileName);
-    const queue = new Queue({ concurrency: 20 });
+  await startImport(fileName);
+  const queue = new Queue({ concurrency: 20 });
+  let chosenFiles = [];
 
+  try {
     console.log("Unpacking and processing the archive...");
     const directory = await Open.file(filePath);
-    const chosenFiles = directory.files.filter((file) =>
-      selectedFiles.includes(file.path),
-    );
+    chosenFiles = directory.files.filter((file) => selectedFiles.includes(file.path));
+  } catch (err) {
+    const [execDuration] = process.hrtime(execStart);
+    await catchFileError(filePath, execDuration);
+    return;
+  }
 
+  try {
     const filePromises = chosenFiles.map(
       (file) =>
         new Promise(async (resolve, reject) => {

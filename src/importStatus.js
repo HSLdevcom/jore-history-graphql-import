@@ -11,6 +11,7 @@ export async function getLatestImportedFile() {
     .withSchema(schema)
     .first()
     .from(statusTable)
+    .where("file_error", false)
     .orderBy("import_start", "desc");
 }
 
@@ -42,6 +43,7 @@ export const startImport = async (filename) =>
     filename,
     import_end: null,
     success: false,
+    file_error: false
   });
 
 export const importCompleted = async (filename, isSuccess = true, duration = 0) =>
@@ -50,4 +52,13 @@ export const importCompleted = async (filename, isSuccess = true, duration = 0) 
     import_end: knex.raw("NOW()"),
     success: isSuccess,
     duration,
+  });
+
+export const setFileError = async (filename, duration = 0) =>
+  upsert({
+    filename,
+    import_end: knex.raw("NOW()"),
+    success: false,
+    duration,
+    file_error: true
   });
