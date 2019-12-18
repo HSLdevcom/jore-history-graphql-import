@@ -6,48 +6,58 @@ import fs from "fs-extra";
 const cwd = process.cwd();
 const dumpsDir = path.join(cwd, "dumps");
 
-export const createDbDump = async () => {
-  return new Promise(async (resolve, reject) => {
+export const createDbDump = async () =>
+  new Promise(async (resolve, reject) => {
     console.log("Creating a DB dump");
 
     const startTime = process.hrtime();
     let lastError = null;
 
-    await fs.ensureDir(dumpsDir);
+    let fileName;
+    let filePath;
+    let fileExists;
 
-    // This creates a "rolling" dump since the data is always incrementally updated
-    // and it wouldn't make sense to separate the dumps per day.
-    const fileName = "jore_dump_history_rolling";
-    const filePath = path.join(dumpsDir, fileName);
-    const fileExists = await fs.pathExists(filePath);
+    try {
+      await fs.ensureDir(dumpsDir);
 
-    if (fileExists) {
-      // Remove the old dump if it exists
-      await fs.remove(filePath);
+      // This creates a "rolling" dump since the data is always incrementally updated
+      // and it wouldn't make sense to separate the dumps per day.
+      fileName = "jore_dump_history_rolling";
+      filePath = path.join(dumpsDir, fileName);
+      fileExists = await fs.pathExists(filePath);
+
+      if (fileExists) {
+        // Remove the old dump if it exists
+        await fs.remove(filePath);
+      }
+    } catch (err) {
+      reject(err);
     }
 
     console.log(`Dumping the ${JORE_PG_CONNECTION.database} database into ${filePath}`);
 
-    const dumpProcess = childProcess.spawn("pg_dump", [`-f ${filePath}`, "-Fc"], {
-      cwd,
-      shell: true,
-      env: {
-        PGUSER: JORE_PG_CONNECTION.user,
-        PGPASSWORD: JORE_PG_CONNECTION.password,
-        PGHOST: JORE_PG_CONNECTION.host,
-        PGPORT: JORE_PG_CONNECTION.port,
-        PGDATABASE: JORE_PG_CONNECTION.database,
-      },
-    });
+    let dumpProcess;
+
+    try {
+      dumpProcess = childProcess.spawn("pg_dump", [`-f ${filePath}`, "-Fc"], {
+        cwd,
+        shell: true,
+        env: {
+          PGUSER: JORE_PG_CONNECTION.user,
+          PGPASSWORD: JORE_PG_CONNECTION.password,
+          PGHOST: JORE_PG_CONNECTION.host,
+          PGPORT: JORE_PG_CONNECTION.port,
+          PGDATABASE: JORE_PG_CONNECTION.database,
+        },
+      });
+    } catch (err) {
+      reject(err);
+    }
 
     dumpProcess.stderr.on("data", (data) => {
       lastError = data.toString("utf8");
       console.log("Dump error:", lastError);
     });
-
-    /*dumpProcess.stdout.on("data", (data) => {
-        console.log("Dump output:", data.toString("utf8"));
-      });*/
 
     dumpProcess.on("close", (code) => {
       const [execDuration] = process.hrtime(startTime);
@@ -61,4 +71,3 @@ export const createDbDump = async () => {
       }
     });
   });
-};

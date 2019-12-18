@@ -6,6 +6,7 @@ import { DEFAULT_EXPORT_SOURCE, DAILY_TASK_SCHEDULE } from "./constants";
 import { fetchExportFromFTP } from "./sources/fetchExportFromFTP";
 import { server } from "./server";
 import { catchFileError } from "./util/catchFileError";
+import { dailyTask } from "./tasks/daily";
 
 const { knex } = getKnex();
 
@@ -53,22 +54,13 @@ createScheduledImport("daily", DAILY_TASK_SCHEDULE, async (onComplete = () => {}
     return;
   }
 
-  let fileToImport = "";
+  let success = false;
+  let tries = 0;
 
   if (onBeforeImport(importId)) {
-    try {
-      console.log(`Importing from source ${DEFAULT_EXPORT_SOURCE}.`);
-      fileToImport = await downloadSource();
-    } catch (err) {
-      if (fileToImport) {
-        await catchFileError(fileToImport);
-      } else {
-        throw err;
-      }
-    }
-
-    if (fileToImport) {
-      await importFile(fileToImport);
+    while (!success || tries < 10) {
+      success = await dailyTask(downloadSource);
+      tries++;
     }
   }
 

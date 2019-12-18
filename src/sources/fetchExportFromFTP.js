@@ -2,7 +2,7 @@ import { Client } from "basic-ftp/dist/index";
 import { orderBy, get } from "lodash";
 import path from "path";
 import fs from "fs-extra";
-import { getLatestImportedFile } from "../importStatus";
+import { getLatestImportedFile, getErrorFiles } from "../importStatus";
 import {
   FTP_USERNAME,
   FTP_PASSWORD,
@@ -26,6 +26,10 @@ export async function fetchExportFromFTP() {
     latestImported = await getLatestImportedFile();
   }
 
+  const faultyFiles = await getErrorFiles().then((files) =>
+    files.map((file) => file.filename),
+  );
+
   const client = new Client();
 
   await client.access({
@@ -39,7 +43,11 @@ export async function fetchExportFromFTP() {
   await client.cd(FTP_PATH);
   const files = await client.list();
 
-  const zips = files.filter(({ name }) => name.endsWith(".zip"));
+  // Filter out files which we know are faulty.
+  const zips = files.filter(
+    ({ name }) => name.endsWith(".zip") && !faultyFiles.includes(name),
+  );
+
   const newestFile = orderBy(zips, "name", "desc")[0];
   const newestExportName = get(newestFile, "name", "");
 

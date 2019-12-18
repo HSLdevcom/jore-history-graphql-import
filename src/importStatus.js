@@ -15,6 +15,14 @@ export async function getLatestImportedFile() {
     .orderBy("import_start", "desc");
 }
 
+export async function getErrorFiles() {
+  return knex
+    .withSchema(schema)
+    .from(statusTable)
+    .where("file_error", true)
+    .orderBy("import_start", "desc");
+}
+
 export const upsert = async (data) => {
   const { filename } = data;
 

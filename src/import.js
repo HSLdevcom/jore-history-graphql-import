@@ -39,7 +39,7 @@ export async function importFile(filePath) {
   } catch (err) {
     const [execDuration] = process.hrtime(execStart);
     await catchFileError(filePath, execDuration);
-    return;
+    return false;
   }
 
   try {
@@ -67,7 +67,7 @@ export async function importFile(filePath) {
     await Promise.all(filePromises);
 
     console.log("Finishing up...");
-    await delay(3000);
+    await delay(5000);
     await queue.onEmpty();
 
     const dumpFilePath = await createDbDump();
@@ -85,4 +85,6 @@ export async function importFile(filePath) {
 
     await importCompleted(fileName, false, execDuration);
   }
+
+  return true;
 }
