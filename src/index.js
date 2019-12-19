@@ -60,7 +60,7 @@ createScheduledImport("daily", DAILY_TASK_SCHEDULE, async (onComplete = () => {}
   let tries = 0;
 
   if (onBeforeImport(importId)) {
-    while (!success || tries < 10) {
+    while (success === false && tries < 10) {
       success = await dailyTask(downloadSource);
       tries++;
     }
