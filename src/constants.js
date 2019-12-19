@@ -53,6 +53,7 @@ export const AZURE_STORAGE_ACCOUNT = secretsEnv.AZURE_STORAGE_ACCOUNT || "";
 export const AZURE_STORAGE_KEY = secretsEnv.AZURE_STORAGE_KEY || "";
 export const AZURE_UPLOAD_CONTAINER =
   secretsEnv.AZURE_UPLOAD_CONTAINER || "jorehistorydumps";
+export const SLACK_WEBHOOK_URL = secretsEnv.SLACK_WEBHOOK_URL || "";
 
 // There are some special considerations for the geometry table
 export const GEOMETRY_TABLE_NAME = "geometry";
