@@ -58,7 +58,7 @@ export async function fetchExportFromFTP() {
   console.log(`Newest export is ${newestExportName}`);
   console.log(`Latest imported export is ${get(latestImported, "filename")}`);
 
-  // If there is no record of a previously improted file, or if the previously
+  // If there is no record of a previously imported file, or if the previously
   // imported file is different than the latest or if the previous import failed
   // => download and import the archive.
   if (

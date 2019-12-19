@@ -1,11 +1,9 @@
 /* eslint-disable consistent-return */
 import { getKnex } from "./knex";
 import { createScheduledImport, startScheduledImport } from "./schedule";
-import { importFile } from "./import";
 import { DEFAULT_EXPORT_SOURCE, DAILY_TASK_SCHEDULE } from "./constants";
 import { fetchExportFromFTP } from "./sources/fetchExportFromFTP";
 import { server } from "./server";
-import { catchFileError } from "./util/catchFileError";
 import { dailyTask } from "./tasks/daily";
 
 const { knex } = getKnex();
@@ -39,21 +37,9 @@ const onAfterImport = (importerId = "global") => {
   return false;
 };
 
-const sources = {
-  daily: fetchExportFromFTP,
-};
-
 // This is the daily scheduled task that runs the import.
 createScheduledImport("daily", DAILY_TASK_SCHEDULE, async (onComplete = () => {}) => {
   const importId = "default-source";
-  const downloadSource = sources[DEFAULT_EXPORT_SOURCE];
-
-  if (!downloadSource) {
-    console.log(`${DEFAULT_EXPORT_SOURCE} is not defined as a source for the importer.`);
-    onComplete();
-    return;
-  }
-
   console.log(`Importing from source ${DEFAULT_EXPORT_SOURCE}.`);
 
   let success = false;
@@ -61,7 +47,7 @@ createScheduledImport("daily", DAILY_TASK_SCHEDULE, async (onComplete = () => {}
 
   if (onBeforeImport(importId)) {
     while (success === false && tries < 10) {
-      success = await dailyTask(downloadSource);
+      success = await dailyTask(fetchExportFromFTP);
       tries++;
     }
 
