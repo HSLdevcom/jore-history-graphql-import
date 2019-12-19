@@ -84,7 +84,7 @@ export async function importFile(filePath) {
     await uploadDbDump(dumpFilePath);
   } catch (err) {
     console.log("DB upload failed.");
-    console.err(err);
+    console.error(err);
   }
 
   const [execDuration] = process.hrtime(execStart);
