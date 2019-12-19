@@ -6,7 +6,6 @@ export async function dailyTask(source) {
   let fileToImport = "";
 
   try {
-    console.log(`Importing from source ${DEFAULT_EXPORT_SOURCE}.`);
     fileToImport = await source();
   } catch (err) {
     if (fileToImport) {

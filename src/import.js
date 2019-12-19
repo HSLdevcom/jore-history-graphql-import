@@ -69,14 +69,6 @@ export async function importFile(filePath) {
     console.log("Finishing up...");
     await delay(5000);
     await queue.onEmpty();
-
-    const dumpFilePath = await createDbDump();
-    await uploadDbDump(dumpFilePath);
-
-    const [execDuration] = process.hrtime(execStart);
-    await importCompleted(fileName, true, execDuration);
-
-    console.log(`${fileName} imported in ${execDuration}s`);
   } catch (err) {
     const [execDuration] = process.hrtime(execStart);
 
@@ -86,6 +78,19 @@ export async function importFile(filePath) {
     await importCompleted(fileName, false, execDuration);
     return false;
   }
+
+  try {
+    const dumpFilePath = await createDbDump();
+    await uploadDbDump(dumpFilePath);
+  } catch (err) {
+    console.log("DB upload failed.");
+    console.err(err);
+  }
+
+  const [execDuration] = process.hrtime(execStart);
+  await importCompleted(fileName, true, execDuration);
+
+  console.log(`${fileName} imported in ${execDuration}s`);
 
   return true;
 }

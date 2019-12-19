@@ -54,6 +54,8 @@ createScheduledImport("daily", DAILY_TASK_SCHEDULE, async (onComplete = () => {}
     return;
   }
 
+  console.log(`Importing from source ${DEFAULT_EXPORT_SOURCE}.`);
+
   let success = false;
   let tries = 0;
 
