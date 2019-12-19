@@ -45,11 +45,9 @@ export const uploadDbDump = async (filePath) => {
   try {
     await blobClient.upload(getFileStream, fileStat.size);
   } catch (err) {
-    console.log("Dump upload unsuccessful.");
     console.error(err);
-    return false;
+    throw err;
   }
 
   console.log("Dump upload successful.");
-  return true;
 };

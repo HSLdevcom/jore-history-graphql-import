@@ -6,38 +6,31 @@ import fs from "fs-extra";
 const cwd = process.cwd();
 const dumpsDir = path.join(cwd, "dumps");
 
-export const createDbDump = async () =>
-  new Promise(async (resolve, reject) => {
-    console.log("Creating a DB dump");
+export const createDbDump = async () => {
+  console.log("Creating a DB dump");
 
-    const startTime = process.hrtime();
-    let lastError = null;
+  const startTime = process.hrtime();
+  let lastError = null;
 
-    let fileName;
-    let filePath;
-    let fileExists;
+  await fs.ensureDir(dumpsDir);
 
-    try {
-      await fs.ensureDir(dumpsDir);
+  // This creates a "rolling" dump since the data is always incrementally updated
+  // and it wouldn't make sense to separate the dumps per day.
+  const fileName = "jore_dump_history_rolling";
+  const filePath = path.join(dumpsDir, fileName);
+  const fileExists = await fs.pathExists(filePath);
 
-      // This creates a "rolling" dump since the data is always incrementally updated
-      // and it wouldn't make sense to separate the dumps per day.
-      fileName = "jore_dump_history_rolling";
-      filePath = path.join(dumpsDir, fileName);
-      fileExists = await fs.pathExists(filePath);
+  if (fileExists) {
+    // Remove the old dump if it exists
+    await fs.remove(filePath);
+  }
 
-      if (fileExists) {
-        // Remove the old dump if it exists
-        await fs.remove(filePath);
-      }
-    } catch (err) {
-      reject(err);
-    }
-
+  return new Promise((resolve, reject) => {
     console.log(`Dumping the ${JORE_PG_CONNECTION.database} database into ${filePath}`);
 
     let dumpProcess;
 
+    // Catch errors coming from the spawning itself, like ENOMEM
     try {
       dumpProcess = childProcess.spawn("pg_dump", [`-f ${filePath}`, "-Fc"], {
         cwd,
@@ -71,3 +64,4 @@ export const createDbDump = async () =>
       }
     });
   });
+};

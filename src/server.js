@@ -12,6 +12,7 @@ import fs from "fs-extra";
 import { importFile } from "./import";
 import { createDbDump } from "./util/createDbDump";
 import { uploadDbDump } from "./util/uploadDbDump";
+import { reportError } from "./monitor";
 
 const cwd = process.cwd();
 const uploadPath = path.join(cwd, "uploads");
@@ -79,6 +80,9 @@ export const server = (isImporting, onBeforeImport, onAfterImport) => {
     // Use the mv() method to place the file somewhere on your server
     exportFile.mv(exportPath, async (err) => {
       if (err) {
+        await reportError(
+          `Moving the downloaded file ${exportName} to storage after upload failed.`,
+        );
         return res.status(500).send(err);
       }
 
@@ -86,13 +90,14 @@ export const server = (isImporting, onBeforeImport, onAfterImport) => {
         try {
           await importFile(exportPath);
         } catch (importError) {
+          await reportError(importError);
           console.error(importError);
         }
 
         onAfterImport(importId);
       }
     });
-  
+
     res.redirect(PATH_PREFIX);
   });
 
@@ -118,7 +123,8 @@ export const server = (isImporting, onBeforeImport, onAfterImport) => {
         .then(uploadDbDump)
         .then(() => {
           manualDumpInProgress = false;
-        });
+        })
+        .catch(reportError);
     }
 
     res.redirect(PATH_PREFIX);
@@ -126,5 +132,6 @@ export const server = (isImporting, onBeforeImport, onAfterImport) => {
 
   app.listen(SERVER_PORT, () => {
     console.log(`Server is listening on port ${SERVER_PORT}`);
+    // reportInfo("Server started.")
   });
 };

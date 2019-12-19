@@ -5,6 +5,7 @@ import { DEFAULT_EXPORT_SOURCE, DAILY_TASK_SCHEDULE } from "./constants";
 import { fetchExportFromFTP } from "./sources/fetchExportFromFTP";
 import { server } from "./server";
 import { dailyTask } from "./tasks/daily";
+import { reportError } from "./monitor";
 
 const { knex } = getKnex();
 
@@ -52,6 +53,7 @@ createScheduledImport("daily", DAILY_TASK_SCHEDULE, async (onComplete = () => {}
     }
 
     if (!success) {
+      await reportError("The daily task exited after 10 unsuccessful attempts.");
       process.exit(1);
     }
   }
