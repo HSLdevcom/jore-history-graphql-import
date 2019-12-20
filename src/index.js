@@ -5,7 +5,7 @@ import { DEFAULT_EXPORT_SOURCE, DAILY_TASK_SCHEDULE } from "./constants";
 import { fetchExportFromFTP } from "./sources/fetchExportFromFTP";
 import { server } from "./server";
 import { dailyTask } from "./tasks/daily";
-import { reportError } from "./monitor";
+import { reportError, reportInfo } from "./monitor";
 
 const { knex } = getKnex();
 
@@ -53,7 +53,9 @@ createScheduledImport("daily", DAILY_TASK_SCHEDULE, async (onComplete = () => {}
     }
 
     if (!success) {
-      await reportError("The daily task failed after 10 unsuccessful attempts and the server exited.");
+      await reportError(
+        "The daily task failed after 10 unsuccessful attempts and the server exited.",
+      );
       process.exit(1);
     }
   }
@@ -70,4 +72,21 @@ createScheduledImport("daily", DAILY_TASK_SCHEDULE, async (onComplete = () => {}
   // This will start the timer and run the task once.
   startScheduledImport("daily");
   server(() => isImporting, onBeforeImport, onAfterImport);
+
+  await reportInfo("Server started.");
 })();
+
+// catch ctrl+c event and exit normally
+process.on("SIGINT", async () => {
+  console.log("Ctrl-C...");
+  await reportInfo("Process was closed, probably on purpose.");
+  process.exit(0);
+});
+
+// catch uncaught exceptions, trace, then exit normally
+process.on("uncaughtException", async (e) => {
+  console.log("Uncaught Exception...");
+  console.error(e);
+  await reportError(`Uncaught exception: ${e.message || "Something happened!"}`);
+  process.exit(99);
+});
