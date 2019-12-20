@@ -4,6 +4,7 @@ import {
   AZURE_UPLOAD_CONTAINER,
 } from "../constants";
 import { SharedKeyCredential, BlobServiceClient } from "@azure/storage-blob";
+import { AbortController } from "@azure/abort-controller";
 import path from "path";
 import fs from "fs-extra";
 
@@ -16,20 +17,17 @@ export const uploadDbDump = async (filePath) => {
     console.log(
       "Azure credentials not set. Set the AZURE_STORAGE_ACCOUNT and AZURE_STORAGE_KEY env variables.",
     );
-    return false;
+    throw new Error("Azure credentials not found.")
   }
 
   const fileExists = await fs.pathExists(filePath);
 
   if (!fileExists) {
     console.log("No file to upload. Exiting.");
-    return false;
+    throw new Error("Dump file to upload not found.")
   }
 
   console.log(`Uploading DB dump ${filePath} to Azure.`);
-  const fileStat = await fs.stat(filePath);
-
-  const getFileStream = () => fs.createReadStream(filePath);
 
   const sharedKeyCredential = new SharedKeyCredential(account, accountKey);
   const blobServiceClient = new BlobServiceClient(
@@ -40,12 +38,19 @@ export const uploadDbDump = async (filePath) => {
   const containerClient = blobServiceClient.getContainerClient(containerName);
 
   const blobName = path.basename(filePath);
-  const blobClient = containerClient.getBlobClient(blobName).getBlockBlobClient();
+  const blobClient = containerClient.getBlobClient(blobName);
+  const blockBlobClient = blobClient.getBlockBlobClient();
 
   try {
-    await blobClient.upload(getFileStream, fileStat.size);
+    await blockBlobClient.uploadStream(
+      fs.createReadStream(filePath),
+      4 * 1024 * 1024,
+      20,
+      {
+        abortSignal: AbortController.timeout(30 * 60 * 1000), // abort after 30 mins
+      },
+    );
   } catch (err) {
-    console.error(err);
     throw err;
   }
 

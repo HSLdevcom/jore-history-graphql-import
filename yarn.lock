@@ -9,6 +9,13 @@
   dependencies:
     tslib "^1.9.3"
 
+"@azure/abort-controller@^1.0.1":
+  version "1.0.1"
+  resolved "https://registry.yarnpkg.com/@azure/abort-controller/-/abort-controller-1.0.1.tgz#8510935b25ac051e58920300e9d7b511ca6e656a"
+  integrity sha512-wP2Jw6uPp8DEDy0n4KNidvwzDjyVV2xnycEIq7nPzj1rHyb/r+t3OPeNT1INZePP2wy5ZqlwyuyOMTi0ePyY1A==
+  dependencies:
+    tslib "^1.9.3"
+
 "@azure/core-asynciterator-polyfill@^1.0.0-preview.1":
   version "1.0.0-preview.1"
   resolved "https://registry.yarnpkg.com/@azure/core-asynciterator-polyfill/-/core-asynciterator-polyfill-1.0.0-preview.1.tgz#ad7c726cfd73c946dbfbc3e485338ccf678fc75a"
