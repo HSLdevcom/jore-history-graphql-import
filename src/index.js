@@ -47,13 +47,13 @@ createScheduledImport("daily", DAILY_TASK_SCHEDULE, async (onComplete = () => {}
   let tries = 0;
 
   if (onBeforeImport(importId)) {
-    while (success === false && tries < 10) {
+    while (!success && tries < 10) {
       success = await dailyTask(fetchExportFromFTP);
       tries++;
     }
 
     if (!success) {
-      await reportError("The daily task exited after 10 unsuccessful attempts.");
+      await reportError("The daily task failed after 10 unsuccessful attempts and the server exited.");
       process.exit(1);
     }
   }

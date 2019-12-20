@@ -75,6 +75,7 @@ export async function importFile(filePath) {
 
     const message = `${fileName} import failed. Duration: ${execDuration}s`;
     await reportError(message);
+
     console.log(message);
     console.error(err);
 
@@ -95,7 +96,6 @@ export async function importFile(filePath) {
   await importCompleted(fileName, true, execDuration);
 
   const message = `${fileName} imported in ${execDuration}s`;
-
   await reportInfo(message);
   console.log(message);
 
