@@ -1,5 +1,3 @@
-import { JORE_PG_CONNECTION } from "../constants";
-
 const { createTables, createForeignKeys } = require("./createDb");
 const fs = require("fs-extra");
 const path = require("path");
@@ -14,6 +12,7 @@ async function initDb(knex) {
     );
 
     await knex.raw(createSchemaSQL);
+
     const createdTables = await createTables("jore", tables, knex);
 
     if (createdTables.length !== 0) {
@@ -27,7 +26,7 @@ async function initDb(knex) {
 
     await knex.raw(createFunctionsSQL);
 
-    if(process.env.JORE_POSTGRES_DB.includes("citus")) {
+    if (process.env.JORE_POSTGRES_DB.includes("citus")) {
       const createDistributedTablesSQL = await fs.readFile(
         path.join(__dirname, "createDistributedTables.sql"),
         "utf8",
