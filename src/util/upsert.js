@@ -31,10 +31,10 @@ export async function upsert({
 
   function batchInsert(rows) {
     if (trx) {
-      return knex.batchInsert(tableId, rows, 2000).transacting(trx);
+      return knex.batchInsert(tableId, rows, 1000).transacting(trx);
     }
 
-    return knex.batchInsert(tableId, rows, 2000);
+    return knex.batchInsert(tableId, rows, 1000);
   }
 
   // Just insert if we don't have any constraints
