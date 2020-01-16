@@ -35,6 +35,7 @@ postgres-data
 downloads
 source/*.zip
 .env
+.env-old
 uploads
 dumps
 secrets

@@ -59,4 +59,4 @@ export const SLACK_MONITOR_MENTION = secretsEnv.SLACK_MONITOR_MENTION || "";
 export const ENVIRONMENT = secretsEnv.ENVIRONMENT || "unknown";
 
 // There are some special considerations for the geometry table
-export const GEOMETRY_TABLE_NAME = "route_geometry";
+export const GEOMETRY_TABLE_NAME = "geometry";

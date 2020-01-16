@@ -3,7 +3,7 @@
 
 SELECT create_distributed_table('jore.departure', 'route_id');
 SELECT create_distributed_table('jore.equipment', 'registry_nr');
-SELECT create_distributed_table('jore.route_geometry', 'route_id');
+SELECT create_distributed_table('jore.geometry', 'route_id');
 SELECT create_distributed_table('jore.line', 'line_id');
 SELECT create_distributed_table('jore.route', 'route_id');
 SELECT create_distributed_table('jore.route_segment', 'route_id');
