@@ -147,7 +147,7 @@ function createGeometryObjects(groups, primaryKeys) {
     const geometryData = pick(group[0], primaryKeys);
 
     // Extract the points of the group
-    const points = orderBy(group, "admin.html", "ASC").map(({ point }) => point);
+    const points = orderBy(group, "index", "ASC").map(({ point }) => point);
 
     // Return a geometry object with a geometric line created with PostGIS.
     return {
@@ -166,7 +166,7 @@ export async function createImportStreamForGeometryTable(queue, primaryKeys, con
 
   lineParser
     .pipe(through.obj((line, enc, cb) => cb(null, createGroup(line))))
-    .pipe(collect(1000))
+    .pipe(collect(2000))
     .pipe(
       map((batch) => {
         // Convert the groups of points into geometry objects
@@ -186,11 +186,11 @@ export const createImportStreamForTable = async (tableName, queue) => {
   if (tableName === GEOMETRY_TABLE_NAME) {
     return createImportStreamForGeometryTable(queue, primaryKeys, constraint);
   }
-  
+
   const importer = createImportQuery(tableName, queue, primaryKeys, constraint);
   const lineParser = createLineParser(tableName);
 
-  lineParser.pipe(collect(1000, 250)).pipe(
+  lineParser.pipe(collect(2000, 200)).pipe(
     map((itemData) => {
       let insertItems = itemData;
 

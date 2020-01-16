@@ -38,3 +38,4 @@ source/*.zip
 uploads
 dumps
 secrets
+report*.json

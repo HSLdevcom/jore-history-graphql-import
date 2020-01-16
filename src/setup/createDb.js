@@ -30,6 +30,8 @@ async function createTables(schema, config, knex) {
                 column = table.string(name, length);
               } else if (type === "decimal") {
                 column = table.decimal(name, 9, 6);
+              } else if (type === "text") {
+                column = table.text(name);
               } else {
                 column = table[type](name, typeOptions);
               }

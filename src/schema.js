@@ -601,7 +601,7 @@ module.exports = {
     ],
     primary: ["line_id", "note_id", "note_type"],
   },
-  geometry: {
+  route_geometry: {
     filename: "reittimuoto.dat",
     // The line schema definitions are used when parsing lines. The fields
     // definitions are used when creating the table structure.
@@ -698,7 +698,7 @@ module.exports = {
       {
         name: "geom",
         type: "specificType",
-        typeOptions: "geometry(LineString,4326)",
+        typeOptions: "geometry(LineString, 4326)",
         notNullable: true,
       },
     ],

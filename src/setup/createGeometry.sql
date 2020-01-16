@@ -1,4 +1,4 @@
-INSERT INTO jore.geometry
+INSERT INTO jore.route_geometry
 SELECT
   route_id,
   direction,
@@ -10,4 +10,4 @@ SELECT
 FROM jore.point_geometry geometry
 GROUP BY route_id, direction, date_begin, date_end;
 
-CREATE INDEX ON jore.geometry USING GIST (geom);
+CREATE INDEX ON jore.route_geometry USING GIST (geom);

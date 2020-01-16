@@ -357,40 +357,6 @@ $$ LANGUAGE SQL
 
 DO $$
     BEGIN
-        CREATE TYPE jore.GEOMETRY_WITH_DATE AS (
-            geometry JSONB,
-            date_begin DATE,
-            date_end DATE
-            );
-    EXCEPTION
-        WHEN duplicate_object THEN NULL;
-    END $$;
-
-CREATE OR REPLACE FUNCTION jore.route_geometries(route jore.ROUTE, date DATE) RETURNS SETOF jore.GEOMETRY_WITH_DATE AS
-$$
-SELECT ST_AsGeoJSON(geometry.geom)::JSONB, date_begin, date_end
-FROM jore.geometry geometry
-WHERE route.route_id = geometry.route_id
-  AND route.direction = geometry.direction
-  AND route.date_begin <= geometry.date_end
-  AND route.date_end >= geometry.date_begin
-  AND CASE WHEN date IS NULL THEN TRUE ELSE date BETWEEN geometry.date_begin AND geometry.date_end END;
-$$ LANGUAGE SQL
-    STABLE;
-
-CREATE OR REPLACE FUNCTION jore.stops_by_bbox(min_lat DOUBLE PRECISION,
-                                              min_lon DOUBLE PRECISION,
-                                              max_lat DOUBLE PRECISION,
-                                              max_lon DOUBLE PRECISION) RETURNS SETOF jore.STOP AS
-$$
-SELECT *
-FROM jore.stop stop
-WHERE stop.point && ST_MakeEnvelope(min_lon, min_lat, max_lon, max_lat, 4326);
-$$ LANGUAGE SQL
-    STABLE;
-
-DO $$
-    BEGIN
         CREATE TYPE jore.STOP_GROUPED AS (
             short_id CHARACTER VARYING(6),
             name_fi CHARACTER VARYING(20),
@@ -402,18 +368,6 @@ DO $$
     EXCEPTION
         WHEN duplicate_object THEN NULL;
     END $$;
-
-CREATE OR REPLACE FUNCTION jore.stop_grouped_by_short_id_by_bbox(min_lat DOUBLE PRECISION,
-                                                                 min_lon DOUBLE PRECISION,
-                                                                 max_lat DOUBLE PRECISION,
-                                                                 max_lon DOUBLE PRECISION) RETURNS SETOF jore.STOP_GROUPED AS
-$$
-SELECT stop.short_id, stop.name_fi, stop.name_se, stop.lat, stop.lon, array_agg(stop.stop_id)
-FROM jore.stop stop
-WHERE stop.point && ST_MakeEnvelope(min_lon, min_lat, max_lon, max_lat, 4326)
-GROUP BY stop.short_id, stop.name_fi, stop.name_se, stop.lat, stop.lon;
-$$ LANGUAGE SQL
-    STABLE;
 
 CREATE OR REPLACE FUNCTION jore.stop_grouped_stops(stop_grouped jore.STOP_GROUPED) RETURNS SETOF jore.STOP AS
 $$
@@ -447,27 +401,5 @@ $$
 SELECT DISTINCT jore.stop_modes(stop, date)
 FROM jore.stop stop
 WHERE stop.terminal_id = terminal.terminal_id;
-$$ LANGUAGE SQL
-    STABLE;
-
-CREATE OR REPLACE FUNCTION jore.stop_areas_by_bbox(min_lat DOUBLE PRECISION,
-                                                   min_lon DOUBLE PRECISION,
-                                                   max_lat DOUBLE PRECISION,
-                                                   max_lon DOUBLE PRECISION) RETURNS SETOF jore.STOP_AREA AS
-$$
-SELECT *
-FROM jore.stop_area stop_area
-WHERE stop_area.point && ST_MakeEnvelope(min_lon, min_lat, max_lon, max_lat, 4326);
-$$ LANGUAGE SQL
-    STABLE;
-
-CREATE OR REPLACE FUNCTION jore.terminals_by_bbox(min_lat DOUBLE PRECISION,
-                                                  min_lon DOUBLE PRECISION,
-                                                  max_lat DOUBLE PRECISION,
-                                                  max_lon DOUBLE PRECISION) RETURNS SETOF jore.TERMINAL AS
-$$
-SELECT *
-FROM jore.terminal terminal
-WHERE terminal.point && ST_MakeEnvelope(min_lon, min_lat, max_lon, max_lat, 4326);
 $$ LANGUAGE SQL
     STABLE;
