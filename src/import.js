@@ -12,6 +12,8 @@ import split from "split2";
 import Queue from "p-queue";
 import { catchFileError } from "./util/catchFileError";
 import { reportError, reportInfo } from "./monitor";
+import { createDbDump } from "./util/createDbDump";
+import { uploadDbDump } from "./util/uploadDbDump";
 
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -81,14 +83,14 @@ export async function importFile(filePath) {
     return false;
   }
 
-  /*try {
+  try {
     const dumpFilePath = await createDbDump();
     await uploadDbDump(dumpFilePath);
   } catch (err) {
     await reportError(err.message || "DB upload failed.");
     console.log(err.message || "DB upload failed.");
     console.error(err);
-  }*/
+  }
 
   const [execDuration] = process.hrtime(execStart);
   await importCompleted(fileName, true, execDuration);
