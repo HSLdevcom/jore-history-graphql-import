@@ -698,7 +698,7 @@ module.exports = {
       {
         name: "geom",
         type: "specificType",
-        typeOptions: "geometry(LineString,4326)",
+        typeOptions: "geometry(LineString, 4326)",
         notNullable: true,
       },
     ],

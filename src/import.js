@@ -10,10 +10,10 @@ import schema from "./schema";
 import iconv from "iconv-lite";
 import split from "split2";
 import Queue from "p-queue";
-import { createDbDump } from "./util/createDbDump";
-import { uploadDbDump } from "./util/uploadDbDump";
 import { catchFileError } from "./util/catchFileError";
 import { reportError, reportInfo } from "./monitor";
+import { createDbDump } from "./util/createDbDump";
+import { uploadDbDump } from "./util/uploadDbDump";
 
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
