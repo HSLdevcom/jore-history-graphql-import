@@ -14,6 +14,7 @@ import { catchFileError } from "./util/catchFileError";
 import { reportError, reportInfo } from "./monitor";
 import { createDbDump } from "./util/createDbDump";
 import { uploadDbDump } from "./util/uploadDbDump";
+import { ENVIRONMENT } from "./constants";
 
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -68,7 +69,7 @@ export async function importFile(filePath) {
     await Promise.all(filePromises);
 
     console.log("Finishing up...");
-    await delay(5000);
+    await delay(120000);
     await queue.onEmpty();
   } catch (err) {
     const [execDuration] = process.hrtime(execStart);
@@ -83,13 +84,15 @@ export async function importFile(filePath) {
     return false;
   }
 
-  try {
-    const dumpFilePath = await createDbDump();
-    await uploadDbDump(dumpFilePath);
-  } catch (err) {
-    await reportError(err.message || "DB upload failed.");
-    console.log(err.message || "DB upload failed.");
-    console.error(err);
+  if(ENVIRONMENT !== "local") {
+    try {
+      const dumpFilePath = await createDbDump();
+      await uploadDbDump(dumpFilePath);
+    } catch (err) {
+      await reportError(err.message || "DB upload failed.");
+      console.log(err.message || "DB upload failed.");
+      console.error(err);
+    }
   }
 
   const [execDuration] = process.hrtime(execStart);
