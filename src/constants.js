@@ -36,7 +36,6 @@ export const JORE_PG_CONNECTION = {
   user: secretsEnv.JORE_POSTGRES_USER,
   password: secretsEnv.JORE_POSTGRES_PASSWORD,
   database: secretsEnv.JORE_POSTGRES_DB,
-  ssl: true
 };
 
 export const FTP_USERNAME = secretsEnv.FTP_USERNAME || "";
