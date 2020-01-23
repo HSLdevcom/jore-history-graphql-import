@@ -396,7 +396,7 @@ module.exports = {
         type: "date",
       },
     ],
-    primary: ["stop_id", "route_id", "direction", "date_begin", "date_end", "stop_index"],
+    primary: ["route_id", "direction", "date_begin", "date_end", "stop_index"],
   },
   departure: {
     filename: "aikat.dat",
