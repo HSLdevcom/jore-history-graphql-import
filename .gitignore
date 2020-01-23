@@ -40,3 +40,4 @@ uploads
 dumps
 secrets
 report*.json
+.env-citus
