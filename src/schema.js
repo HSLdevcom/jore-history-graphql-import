@@ -232,6 +232,7 @@ module.exports = {
         length: 8,
         name: "date_begin",
         type: "date",
+        index: true,
         notNullable: true,
       },
       {
@@ -344,6 +345,7 @@ module.exports = {
         length: 8,
         name: "date_begin",
         type: "date",
+        index: true,
         notNullable: true,
       },
       {
@@ -362,6 +364,7 @@ module.exports = {
         length: 3,
         name: "stop_index",
         type: "integer",
+        index: true,
         notNullable: true,
       },
       {
@@ -465,6 +468,7 @@ module.exports = {
         length: 8,
         name: "date_begin",
         type: "date",
+        index: true,
         notNullable: true,
       },
       {
@@ -687,6 +691,7 @@ module.exports = {
         length: 8,
         name: "date_begin",
         type: "date",
+        index: true,
         notNullable: true,
       },
       {
@@ -777,12 +782,14 @@ module.exports = {
         length: 2,
         name: "exception_day_type",
         type: "string",
+        index: true,
         notNullable: true,
       },
       {
         length: 2,
         name: "day_type",
         type: "string",
+        index: true,
         notNullable: true,
       },
       {
@@ -823,6 +830,7 @@ module.exports = {
         length: 2,
         name: "replacing_day_type",
         type: "string",
+        index: true,
         notNullable: true,
       },
       {
@@ -834,17 +842,20 @@ module.exports = {
         length: 2,
         name: "day_type",
         type: "string",
+        index: true,
         notNullable: true,
       },
       {
         length: 4,
         name: "time_begin",
         type: "string",
+        index: true,
       },
       {
         length: 4,
         name: "time_end",
         type: "string",
+        index: true,
       },
     ],
   },

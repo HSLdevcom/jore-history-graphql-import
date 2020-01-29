@@ -25,15 +25,6 @@ async function initDb(knex) {
     );
 
     await knex.raw(createFunctionsSQL);
-
-    /*if (process.env.JORE_POSTGRES_DB.includes("citus")) {
-      const createDistributedTablesSQL = await fs.readFile(
-        path.join(__dirname, "createDistributedTables.sql"),
-        "utf8",
-      );
-
-      await knex.raw(createDistributedTablesSQL);
-    }*/
   } catch (err) {
     console.error(err);
     process.exit(1);
