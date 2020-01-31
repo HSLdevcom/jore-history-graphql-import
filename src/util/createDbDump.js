@@ -32,7 +32,7 @@ export const createDbDump = async () => {
 
     // Catch errors coming from the spawning itself, like ENOMEM
     try {
-      dumpProcess = childProcess.spawn("pg_dump", [`-f ${filePath}`, "-Fc"], {
+      dumpProcess = childProcess.spawn("pg_dump", [`-f ${filePath}`, "-Fc", "-n jore"], {
         cwd,
         shell: true,
         env: {
