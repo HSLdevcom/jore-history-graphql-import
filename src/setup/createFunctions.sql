@@ -31,7 +31,7 @@ $$
 select *
 from jore.route_segment route_segment
 where route_segment.stop_id = stop.stop_id
-  and case when date is null then true else date between route_segment.date_begin and route_segment.date_end end;
+  and case when date is null then true else date >= route_segment.date_begin end;
 $$ LANGUAGE SQL
     STABLE;
 
@@ -43,7 +43,7 @@ where route_segment.route_id = route.route_id
   and route_segment.direction = route.direction
   and route.date_begin <= route_segment.date_end
   and route.date_end >= route_segment.date_begin
-  and case when date is null then true else date between route.date_begin and route.date_end end
+  and case when date is null then true else date >= route.date_begin end
 limit 1;
 $$ LANGUAGE SQL
     STABLE;
