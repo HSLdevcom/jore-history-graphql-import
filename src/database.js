@@ -166,7 +166,7 @@ export async function createImportStreamForGeometryTable(queue, primaryKeys, con
 
   lineParser
     .pipe(through.obj((line, enc, cb) => cb(null, createGroup(line))))
-    .pipe(collect(1000))
+    .pipe(collect(500, 100))
     .pipe(
       map((batch) => {
         // Convert the groups of points into geometry objects
@@ -190,7 +190,7 @@ export const createImportStreamForTable = async (tableName, queue) => {
   const importer = createImportQuery(tableName, queue, primaryKeys, constraint);
   const lineParser = createLineParser(tableName);
 
-  lineParser.pipe(collect(1000, 200)).pipe(
+  lineParser.pipe(collect(500, 100)).pipe(
     map((itemData) => {
       let insertItems = itemData;
 

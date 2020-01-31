@@ -31,7 +31,7 @@ export async function importFile(filePath) {
   const fileName = path.basename(filePath);
 
   await startImport(fileName);
-  const queue = new Queue({ concurrency: 20 });
+  const queue = new Queue({ concurrency: 5 });
   let chosenFiles = [];
 
   try {
@@ -69,7 +69,7 @@ export async function importFile(filePath) {
     await Promise.all(filePromises);
 
     console.log("Finishing up...");
-    await delay(120000);
+    await delay(60000);
     await queue.onEmpty();
   } catch (err) {
     const [execDuration] = process.hrtime(execStart);
