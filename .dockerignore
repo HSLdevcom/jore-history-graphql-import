@@ -8,3 +8,4 @@ uploads
 source
 .env
 dumps
+secrets
