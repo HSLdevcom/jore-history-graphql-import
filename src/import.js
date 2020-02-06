@@ -9,17 +9,12 @@ import { Open } from "unzipper";
 import schema from "./schema";
 import iconv from "iconv-lite";
 import split from "split2";
-import pAll from "p-all";
 import PQueue from "p-queue";
 import { catchFileError } from "./util/catchFileError";
 import { reportError, reportInfo } from "./monitor";
 import { createDbDump } from "./util/createDbDump";
 import { uploadDbDump } from "./util/uploadDbDump";
 import { ENVIRONMENT } from "./constants";
-
-function delay(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
 const getTableNameFromFileName = (filename) =>
   Object.entries(schema).find(
@@ -32,14 +27,15 @@ export async function importFile(filePath) {
   const fileName = path.basename(filePath);
 
   await startImport(fileName);
-  const queue = new PQueue({ concurrency: 25 });
-  const queuedPromises = [];
-  let queueTime = 0;
+  const queue = new PQueue({ concurrency: 95 });
+  let activePromises = 0;
 
   const queueAdd = (promiseFn) => {
-    const queuedPromise = queue.add(promiseFn);
-    queuedPromises.push(queuedPromise);
-    queueTime += 100;
+    queue.add(promiseFn).then(() => {
+      activePromises -= 1;
+    });
+
+    activePromises += 1;
   };
 
   let chosenFiles = [];
@@ -91,12 +87,22 @@ export async function importFile(filePath) {
     console.log("Importing the data...");
     await Promise.all(filePromises);
 
+    const queuePromise = new Promise((resolve) => {
+      let interval = 0;
+
+      interval = setInterval(() => {
+        console.log(activePromises);
+
+        if (activePromises <= 0) {
+          clearInterval(interval);
+          resolve();
+        }
+      }, 1000);
+    });
+
+    await queuePromise;
     await queue.onEmpty();
 
-    console.log(queueTime);
-    await delay(queueTime);
-
-    await Promise.all(queuedPromises);
     console.log("Finishing up...");
   } catch (err) {
     const [execDuration] = process.hrtime(execStart);
