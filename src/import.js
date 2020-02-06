@@ -9,7 +9,8 @@ import { Open } from "unzipper";
 import schema from "./schema";
 import iconv from "iconv-lite";
 import split from "split2";
-import Queue from "p-queue";
+import pAll from "p-all";
+import PQueue from "p-queue";
 import { catchFileError } from "./util/catchFileError";
 import { reportError, reportInfo } from "./monitor";
 import { createDbDump } from "./util/createDbDump";
@@ -31,7 +32,16 @@ export async function importFile(filePath) {
   const fileName = path.basename(filePath);
 
   await startImport(fileName);
-  const queue = new Queue({ concurrency: 5 });
+  const queue = new PQueue({ concurrency: 25 });
+  const queuedPromises = [];
+  let queueTime = 0;
+
+  const queueAdd = (promiseFn) => {
+    const queuedPromise = queue.add(promiseFn);
+    queuedPromises.push(queuedPromise);
+    queueTime += 100;
+  };
+
   let chosenFiles = [];
 
   try {
@@ -47,30 +57,47 @@ export async function importFile(filePath) {
   try {
     const filePromises = chosenFiles.map(
       (file) =>
-        new Promise(async (resolve, reject) => {
+        new Promise((resolve, reject) => {
           const tableName = getTableNameFromFileName(file.path);
-          const importStream = await createImportStreamForTable(tableName, queue);
 
-          file
-            .stream()
-            .pipe(iconv.decodeStream("ISO-8859-1"))
-            .pipe(iconv.encodeStream("utf8"))
-            .pipe(split())
-            .pipe(processLine(tableName))
-            .pipe(importStream)
-            .on("finish", () => {
-              resolve(tableName);
-            })
-            .on("error", reject);
+          createImportStreamForTable(tableName, queueAdd).then((importStream) => {
+            const readStream = file
+              .stream()
+              .pipe(iconv.decodeStream("ISO-8859-1"))
+              .pipe(iconv.encodeStream("utf8"))
+              .pipe(split())
+              .pipe(processLine(tableName));
+
+            readStream.on("error", (err) => {
+              importStream.destroy(err);
+              reject(err);
+            });
+
+            readStream.pipe(importStream);
+
+            importStream
+              .on("finish", () => {
+                console.log("finish");
+                resolve(tableName);
+              })
+              .on("error", (err) => {
+                readStream.destroy(err);
+                reject(err);
+              });
+          });
         }),
     );
 
     console.log("Importing the data...");
     await Promise.all(filePromises);
 
-    console.log("Finishing up...");
-    await delay(60000);
     await queue.onEmpty();
+
+    console.log(queueTime);
+    await delay(queueTime);
+
+    await Promise.all(queuedPromises);
+    console.log("Finishing up...");
   } catch (err) {
     const [execDuration] = process.hrtime(execStart);
 
@@ -84,7 +111,7 @@ export async function importFile(filePath) {
     return false;
   }
 
-  if(ENVIRONMENT !== "local") {
+  if (ENVIRONMENT !== "local") {
     try {
       const dumpFilePath = await createDbDump();
       await uploadDbDump(dumpFilePath);

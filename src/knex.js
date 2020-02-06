@@ -16,7 +16,7 @@ export function getKnex() {
     connection: JORE_PG_CONNECTION,
     pool: {
       min: 0,
-      max: 10,
+      max: 50,
     },
   });
 

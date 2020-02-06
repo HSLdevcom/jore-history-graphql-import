@@ -15,7 +15,7 @@ const SCHEMA = "jore";
 const NS_PER_SEC = 1e9; // For tracking performance
 
 // Create the upsert query with a transaction,
-const createImportQuery = (tableName, queue, primaryKeys, constraint) => async (data) => {
+const createImportQuery = (tableName, primaryKeys, constraint) => async (data) => {
   let queryResult;
   const time = process.hrtime();
 
@@ -158,39 +158,43 @@ function createGeometryObjects(groups, primaryKeys) {
 }
 
 // Import the geometry data from the point_geometry data with conversion
-export async function createImportStreamForGeometryTable(queue, primaryKeys, constraint) {
+export async function createImportStreamForGeometryTable(
+  queueAdd,
+  primaryKeys,
+  constraint,
+) {
   const tableName = GEOMETRY_TABLE_NAME;
-  const importer = createImportQuery(tableName, queue, primaryKeys, constraint);
+  const importer = createImportQuery(tableName, primaryKeys, constraint);
   const lineParser = createLineParser(tableName);
   const createGroup = createLineGrouper(primaryKeys);
 
   lineParser
     .pipe(through.obj((line, enc, cb) => cb(null, createGroup(line))))
-    .pipe(collect(500, 100))
+    .pipe(collect(1000, 100))
     .pipe(
       map((batch) => {
         // Convert the groups of points into geometry objects
         const geometryItems = createGeometryObjects(batch, primaryKeys);
-        queue.add(() => importer(geometryItems));
+        queueAdd(() => importer(geometryItems));
       }),
     );
 
   return lineParser;
 }
 
-export const createImportStreamForTable = async (tableName, queue) => {
+export const createImportStreamForTable = async (tableName, queueAdd) => {
   const primaryKeys = getIndexForTable(tableName);
   // Get the primary constraint for the table
   const constraint = await getPrimaryConstraint(knex, tableName, SCHEMA);
 
   if (tableName === GEOMETRY_TABLE_NAME) {
-    return createImportStreamForGeometryTable(queue, primaryKeys, constraint);
+    return createImportStreamForGeometryTable(queueAdd, primaryKeys, constraint);
   }
 
-  const importer = createImportQuery(tableName, queue, primaryKeys, constraint);
+  const importer = createImportQuery(tableName, primaryKeys, constraint);
   const lineParser = createLineParser(tableName);
 
-  lineParser.pipe(collect(500, 100)).pipe(
+  lineParser.pipe(collect(1000, 100)).pipe(
     map((itemData) => {
       let insertItems = itemData;
 
@@ -198,7 +202,7 @@ export const createImportStreamForTable = async (tableName, queue) => {
         insertItems = uniqBy(itemData, (item) => createPrimaryKey(item, primaryKeys));
       }
 
-      queue.add(() => importer(insertItems));
+      queueAdd(() => importer(insertItems));
     }),
   );
 
