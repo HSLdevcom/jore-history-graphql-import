@@ -22,21 +22,19 @@ The database is now ready for use.
 Build the container:
 
 ```
-docker build -t hsldevcom/jore-history-graphql-import .
+docker build -t hsldevcom/jore-history-graphql-import:production .
 ```
 
+Use the tags :dev, :stage and :production to target each environment. This way you can prevent code from being deployed to unintended environments.
+
 ### Run
+
+Check the .env files for an idea of which env variables you need to run the app. All env vars in the public .env files with the value of `secret` need to be set using Docker secrets or Azure keyvault.
 
 Start the importer:
 
 ```
-docker run \
---env PG_CONNECTION_STRING=postgres://postgres:mysecretpassword@jore-history-postgis:5432/postgres \
---env USERNAME=****** \
---env PASSWORD=****** \
---name jore-history-graphql-import \
---link jore-history-postgis \
-hsldevcom/jore-history-graphql-import
+docker run -p 8000:8000 --name jore-history-graphql-import hsldevcom/jore-history-graphql-import:production
 ```
 
 Make sure to add the appropriate credentials for the FTP server (USERNAME, PASSWORD). Ask the project team members for these.
@@ -53,58 +51,14 @@ docker run -v ./source:/source:ro -v ./downloads:/tmp/build ...etc
 
 By default the importer will run the "daily import" which involves downloading the export from the FTP server. To change this, append `bash` to the end of the run command at the start of this section and the importer will not do anything automatically. You can then choose which script you want to run from the command line.
 
-### Scripts
+### Admin view
 
-There are two ways to import data with the importer. The "daily" method is the default, and it involves downloading the JORE export from an FTP server. If you have a database export file locally, and you mounted a volume at `/source`, you can import the database from that file without needing to use the FTP server.
+The app exposes an admin interface at port 8000 (by default) which is used to start an import, start an import from an uploaded file, selectively set tables or dump the database.
 
-To select which method to use, run the importer Docker container with the `bash` command:
+To access the admin interface you need to
 
-```
-docker run \
--v ./source:/source:ro \
---env PG_CONNECTION_STRING=postgres://postgres:mysecretpassword@jore-history-postgis:5432/postgres \
---env USERNAME=****** \
---env PASSWORD=****** \
---name jore-history-graphql-import \
---link jore-history-postgis \
-hsldevcom/jore-history-graphql-import \
-bash <-- add this
-```
+1. add a public IP to the host which is running the app and use `p 80:8000` when running the container to bind the ports,
+2. Map the container to a domain with an app gateway from an internal network,
+3. Use an SSH tunnel to the host that is running the app. Run, for example: `ssh -L 8000:localhost:8000 10.223.14.12` and then you can access the admin view at http://localhost:8000. Substitute the port number after `localhost` with the port you published from Docker and the private IP address with the one that your instance of the app uses.
 
-#### run_daily.sh
-
-This is the default script that will run when running the Docker container without overriding the start command. It will download the export from the FTP server, so make sure that USERNAME and PASSWORD env variables are set. Ask the other members of the project team for these.
-
-The script that downloads the file is called `fetch_faily.sh` and it can be run separately if needed.
-
-#### run_local.sh
-
-If you have a database export file locally, use run_local to import it. This is basically the same as run_daily, but it will use `fetch_local.sh` instead to expand the archive from the `/source` directory. Thus, mount a volume to `/source` and put your database export file there before running the container. Example:
-
-```
-host$ docker run \
--v ./source:/source:ro \
---env PG_CONNECTION_STRING=postgres://postgres:mysecretpassword@jore-history-postgis:5432/postgres \
---env USERNAME=****** \
---env PASSWORD=****** \
---name jore-history-graphql-import \
---link jore-history-postgis \
-hsldevcom/jore-history-graphql-import \
-bash
-
-importer$ ./run_local.sh
-```
-
-### Other notes
-
-- Some history exports may be too large for the FTP server, which is why the local import option exists. Ensure that the docker-compose configuration on the server mounts a volume to `/source` since you will probably need to import years worth of JORE data at some point.
-
-### Database admin
-
-You need to configure remote connectivity to the database separately. At this time conencting to it is only possible from other Docker containers on the same server.
-
-To administrate the database directly, use `docker ps` to get the ID of the running jore-history-postgis container and access it like this:
-```bash
-docker exec -it [container ID or name] bash
-```
-Then, run `su postgres` to assume the identity of the postgres user. You can now run `psql` to get an SQL prompt.
+The admin interface will ask you for credentials. These are `admin` and whatever `ADMIN_PASSWORD` you set in the env config.
