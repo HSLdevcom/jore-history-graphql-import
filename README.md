@@ -1,21 +1,10 @@
 # Jore History GraphQL importer
 
-Data importer for [jore-history-graphql](https://github.com/HSLdevcom/jore-history-graphql). The importer downloads a database export from an FTP server and imports it into a PostgreSQL database
+Data importer for [jore-history-graphql](https://github.com/HSLdevcom/jore-history-graphql). The importer downloads a database export from an FTP server and imports it into a PostgreSQL database.
 
 ### Prerequisites
 
-Start a postgis docker container using:
-
-```
-docker run --name jore-history-postgis -e POSTGRES_PASSWORD=mysecretpassword -d mdillon/postgis
-```
-
-Add `-v ./postgres-data:/var/lib/postgresql/data` to the command above to make sure that the database is persisted.
-It is not needed for production as docker-compose handles volumes there.
-
-When the database is up, run `npm run initdb` to apply the JORE schema. The command may not have the correct port that the database is running on, so modify the npm command if necessary. The default port for Postgres is 5432.
-
-The database is now ready for use.
+You need a Postgres database to run the import against. The app will apply the DB schema when strating.
 
 ### Install
 
@@ -39,17 +28,15 @@ docker run -p 8000:8000 --name jore-history-graphql-import hsldevcom/jore-histor
 
 Make sure to add the appropriate credentials for the FTP server (USERNAME, PASSWORD). Ask the project team members for these.
 
-First, the importer downloads the latest export from the FTP server, then it runs the DB migrations to ensure any schema changes are applied. Make sure that migrations run without errors even if the changes they want to make are already applied in the schema.
+Upon starting, the app will check that the DB is migrated fully and run any schema changes if needed. You can also run the migrations with `yarn run knex migrate:latest`. Check Knex docs for more information about migrations.
 
-The importer will then import the data and exit when done. It will take around an hour.
+The import runs on a timer and will activate each night at around 3:00 am. Access the admin interface to trigger the import immediately.
 
 If you want to extract the export ZIP file from the importer, bind a volume to the `/tmp/build` directory. The export will then be available to you after the importer has downloaded it. To run the import with a local export file, without using the FTP server, bind a volume to the `/source` directory. Both volume binds look roughly like this:
 
 ```bash
 docker run -v ./source:/source:ro -v ./downloads:/tmp/build ...etc
 ```
-
-By default the importer will run the "daily import" which involves downloading the export from the FTP server. To change this, append `bash` to the end of the run command at the start of this section and the importer will not do anything automatically. You can then choose which script you want to run from the command line.
 
 ### Admin view
 
