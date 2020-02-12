@@ -1,30 +1,7 @@
-create index on jore.departure (route_id, direction) where stop_role = 1;
-create index on jore.departure (route_id, direction, stop_id);
-
-create or replace FUNCTION jore.departure_origin_departure(departure jore.DEPARTURE) RETURNS jore.DEPARTURE AS
-$$
-select *
-from jore.departure inner_departure
-where inner_departure.route_id = departure.route_id
-  and inner_departure.direction = departure.direction
-  and inner_departure.date_begin = departure.date_begin
-  and inner_departure.date_end = departure.date_end
-  and inner_departure.departure_id = departure.departure_id
-  and inner_departure.day_type = departure.day_type
-  and inner_departure.stop_id = (
-    select originstop_id
-    from jore.route route
-    where route.route_id = departure.route_id
-      and route.direction = departure.direction
-      and route.date_begin <= departure.date_end
-      and route.date_end >= departure.date_begin
-    order by route.date_begin desc
-    limit 1
-)
-order by inner_departure.hours asc, inner_departure.minutes asc
-limit 1;
-$$ LANGUAGE SQL
-    STABLE;
+CREATE INDEX ON jore.departure (route_id, direction) where stop_role = 1;
+CREATE INDEX ON jore.departure (route_id, direction, stop_id);
+CREATE INDEX departure_stop_id_day_type ON jore.departure (stop_id, day_type);
+CREATE INDEX departure_origin_index ON jore.departure (stop_id, route_id, direction, date_begin, date_end, departure_id, day_type);
 
 create or replace FUNCTION jore.stop_route_segments_for_date(stop jore.STOP, date DATE) RETURNS SETOF jore.ROUTE_SEGMENT AS
 $$
