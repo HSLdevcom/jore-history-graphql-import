@@ -110,7 +110,7 @@ const createLineParser = (tableName) => {
   const throughFunc =
     tableName === GEOMETRY_TABLE_NAME
       ? through.obj
-      : throughConcurrent.obj.bind(throughConcurrent.obj, { maxConcurrency: 100 });
+      : throughConcurrent.obj.bind(throughConcurrent.obj, { maxConcurrency: 50 });
 
   return throughFunc((line, enc, cb) => {
     if (!line) {
@@ -194,19 +194,17 @@ export const createImportStreamForTable = async (tableName, queueAdd) => {
   const importer = createImportQuery(tableName, primaryKeys, constraint);
   const lineParser = createLineParser(tableName);
 
-  lineParser
-    .pipe(collect(1000))
-    .pipe(
-      map((itemData) => {
-        let insertItems = itemData;
+  lineParser.pipe(collect(1000)).pipe(
+    map((itemData) => {
+      let insertItems = itemData;
 
-        if (primaryKeys.length !== 0) {
-          insertItems = uniqBy(itemData, (item) => createPrimaryKey(item, primaryKeys));
-        }
+      if (primaryKeys.length !== 0) {
+        insertItems = uniqBy(itemData, (item) => createPrimaryKey(item, primaryKeys));
+      }
 
-        queueAdd(() => importer(insertItems));
-      }),
-    )
+      queueAdd(() => importer(insertItems));
+    }),
+  );
 
   return lineParser;
 };

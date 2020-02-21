@@ -21,13 +21,13 @@ const getTableNameFromFileName = (filename) =>
     ([, { filename: schemaFilename }]) => filename === schemaFilename,
   )[0];
 
-export async function importFile(filePath) {
-  const execStart = process.hrtime();
-  const { selectedFiles } = getSelectedTables();
-  const fileName = path.basename(filePath);
+const asyncWait = (delay = 1000) =>
+  new Promise((resolve) => {
+    setTimeout(resolve, delay);
+  });
 
-  await startImport(fileName);
-  const queue = new PQueue({ concurrency: 95 });
+async function doFileImport(file) {
+  const queue = new PQueue({ concurrency: 50 });
   let activePromises = 0;
 
   const queueAdd = (promiseFn) => {
@@ -37,6 +37,54 @@ export async function importFile(filePath) {
 
     activePromises += 1;
   };
+
+  const onQueueEmpty = async () => {
+    while (activePromises > 0) {
+      await asyncWait(1000);
+    }
+
+    await queue.onEmpty();
+  };
+
+  await new Promise((resolve, reject) => {
+    const tableName = getTableNameFromFileName(file.path);
+
+    createImportStreamForTable(tableName, queueAdd).then((importStream) => {
+      const readStream = file
+        .stream()
+        .pipe(iconv.decodeStream("ISO-8859-1"))
+        .pipe(iconv.encodeStream("utf8"))
+        .pipe(split())
+        .pipe(processLine(tableName));
+
+      readStream.on("error", (err) => {
+        importStream.destroy(err);
+        reject(err);
+      });
+
+      readStream.pipe(importStream);
+
+      importStream
+        .on("finish", () => {
+          console.log(`Reading file for table ${tableName} finished.`);
+          resolve(tableName);
+        })
+        .on("error", (err) => {
+          readStream.destroy(err);
+          reject(err);
+        });
+    });
+  });
+
+  await onQueueEmpty();
+}
+
+export async function importFile(filePath) {
+  const execStart = process.hrtime();
+  const { selectedFiles } = getSelectedTables();
+  const fileName = path.basename(filePath);
+
+  await startImport(fileName);
 
   let chosenFiles = [];
 
@@ -51,57 +99,11 @@ export async function importFile(filePath) {
   }
 
   try {
-    const filePromises = chosenFiles.map(
-      (file) =>
-        new Promise((resolve, reject) => {
-          const tableName = getTableNameFromFileName(file.path);
-
-          createImportStreamForTable(tableName, queueAdd).then((importStream) => {
-            const readStream = file
-              .stream()
-              .pipe(iconv.decodeStream("ISO-8859-1"))
-              .pipe(iconv.encodeStream("utf8"))
-              .pipe(split())
-              .pipe(processLine(tableName));
-
-            readStream.on("error", (err) => {
-              importStream.destroy(err);
-              reject(err);
-            });
-
-            readStream.pipe(importStream);
-
-            importStream
-              .on("finish", () => {
-                console.log("finish");
-                resolve(tableName);
-              })
-              .on("error", (err) => {
-                readStream.destroy(err);
-                reject(err);
-              });
-          });
-        }),
-    );
-
     console.log("Importing the data...");
-    await Promise.all(filePromises);
 
-    const queuePromise = new Promise((resolve) => {
-      let interval = 0;
-
-      interval = setInterval(() => {
-        console.log(activePromises);
-
-        if (activePromises <= 0) {
-          clearInterval(interval);
-          resolve();
-        }
-      }, 1000);
-    });
-
-    await queuePromise;
-    await queue.onEmpty();
+    for (const file of chosenFiles) {
+      await doFileImport(file);
+    }
 
     console.log("Finishing up...");
   } catch (err) {

@@ -7,17 +7,13 @@ import { createEngine } from "express-react-views";
 import path from "path";
 import { getLatestImportedFile } from "./importStatus";
 import { getSelectedTableStatus, setTableOption } from "./selectedTables";
-import { runScheduledImportNow } from "./schedule";
-import fs from "fs-extra";
-import { importFile } from "./import";
 import { createDbDump } from "./util/createDbDump";
 import { uploadDbDump } from "./util/uploadDbDump";
 import { reportError } from "./monitor";
+import { handleUploadedFile } from "./util/handleUploadedFile";
+import { runFileImport, runFtpImport } from "./importRunners";
 
-const cwd = process.cwd();
-const uploadPath = path.join(cwd, "uploads");
-
-export const server = (isImporting, onBeforeImport, onAfterImport) => {
+export const server = (isImporting) => {
   const app = express();
 
   let manualDumpInProgress = false;
@@ -59,7 +55,12 @@ export const server = (isImporting, onBeforeImport, onAfterImport) => {
   });
 
   app.post("/run-daily", (req, res) => {
-    runScheduledImportNow("daily");
+    console.log("Manually triggered FTP import task.");
+
+    runFtpImport().then(() => {
+      console.log("Manually triggered task completed.");
+    });
+
     res.redirect(PATH_PREFIX);
   });
 
@@ -68,35 +69,20 @@ export const server = (isImporting, onBeforeImport, onAfterImport) => {
       return res.status(400).send("No files were uploaded.");
     }
 
-    const importId = "uploaded-file";
-
     // The name of the input field (i.e. "sampleFile") is used to retrieve the uploaded file
-    const exportFile = req.files.export;
-    const exportName = `${exportFile.name.replace(".zip", "")}-downloaded.zip`;
-    const exportPath = path.join(uploadPath, exportName);
+    let exportFilePath = "";
 
-    await fs.emptyDir(uploadPath);
+    try {
+      exportFilePath = await handleUploadedFile(req.files.export);
+    } catch (err) {
+      res.status(500).send(err);
+    }
 
-    // Use the mv() method to place the file somewhere on your server
-    exportFile.mv(exportPath, async (err) => {
-      if (err) {
-        await reportError(
-          `Moving the downloaded file ${exportName} to storage after upload failed.`,
-        );
-        return res.status(500).send(err);
-      }
-
-      if (onBeforeImport(importId)) {
-        try {
-          await importFile(exportPath);
-        } catch (importError) {
-          await reportError(importError);
-          console.error(importError);
-        }
-
-        onAfterImport(importId);
-      }
-    });
+    if (exportFilePath) {
+      runFileImport(exportFilePath).then(() => {
+        console.log("File import completed.");
+      });
+    }
 
     res.redirect(PATH_PREFIX);
   });
