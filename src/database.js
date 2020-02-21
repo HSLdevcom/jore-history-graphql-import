@@ -30,7 +30,7 @@ const createImportQuery = (tableName, primaryKeys, constraint) => async (data) =
 
   const [execS, execNs] = process.hrtime(time);
   const ms = (execS * NS_PER_SEC + execNs) / 1000000;
-  console.log(`Records of ${tableName} imported in ${ms} ms`);
+  console.log(`${data.length } records of ${tableName} imported in ${ms} ms`);
 
   return queryResult;
 };
@@ -110,7 +110,7 @@ const createLineParser = (tableName) => {
   const throughFunc =
     tableName === GEOMETRY_TABLE_NAME
       ? through.obj
-      : throughConcurrent.obj.bind(throughConcurrent.obj, { maxConcurrency: 50 });
+      : throughConcurrent.obj.bind(throughConcurrent.obj, { maxConcurrency: 1000 });
 
   return throughFunc((line, enc, cb) => {
     if (!line) {
@@ -170,7 +170,7 @@ export async function createImportStreamForGeometryTable(
 
   lineParser
     .pipe(through.obj((line, enc, cb) => cb(null, createGroup(line))))
-    .pipe(collect(1000))
+    .pipe(collect(1000, 100))
     .pipe(
       map((batch) => {
         // Convert the groups of points into geometry objects
@@ -194,7 +194,7 @@ export const createImportStreamForTable = async (tableName, queueAdd) => {
   const importer = createImportQuery(tableName, primaryKeys, constraint);
   const lineParser = createLineParser(tableName);
 
-  lineParser.pipe(collect(1000)).pipe(
+  lineParser.pipe(collect(1000, 100)).pipe(
     map((itemData) => {
       let insertItems = itemData;
 

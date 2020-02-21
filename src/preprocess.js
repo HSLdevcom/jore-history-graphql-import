@@ -56,7 +56,7 @@ export function processLine(tableName) {
   const throughFunc =
     tableName === GEOMETRY_TABLE_NAME
       ? through.obj
-      : throughConcurrent.obj.bind(throughConcurrent.obj, { maxConcurrency: 50 });
+      : throughConcurrent.obj.bind(throughConcurrent.obj, { maxConcurrency: 1000 });
 
   return throughFunc(function createLine(chunk, enc, cb) {
     const str = enc === "buffer" ? chunk.toString("utf8") : chunk;

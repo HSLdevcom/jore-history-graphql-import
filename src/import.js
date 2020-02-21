@@ -27,7 +27,7 @@ const asyncWait = (delay = 1000) =>
   });
 
 async function doFileImport(file) {
-  const queue = new PQueue({ concurrency: 50 });
+  const queue = new PQueue({ concurrency: 80 });
   let activePromises = 0;
 
   const queueAdd = (promiseFn) => {
