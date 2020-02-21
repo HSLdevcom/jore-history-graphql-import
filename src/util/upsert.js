@@ -1,4 +1,5 @@
 import { getKnex } from "../knex";
+import { BATCH_SIZE } from "../constants";
 
 const { knex } = getKnex();
 const schema = "jore";
@@ -31,10 +32,10 @@ export async function upsert({
 
   function batchInsert(rows) {
     if (trx) {
-      return knex.batchInsert(tableId, rows, 1000).transacting(trx);
+      return knex.batchInsert(tableId, rows, BATCH_SIZE).transacting(trx);
     }
 
-    return knex.batchInsert(tableId, rows, 1000);
+    return knex.batchInsert(tableId, rows, BATCH_SIZE);
   }
 
   // Just insert if we don't have any constraints

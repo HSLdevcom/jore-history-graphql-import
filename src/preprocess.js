@@ -1,6 +1,6 @@
 import through from "through2";
 import throughConcurrent from "through2-concurrent";
-import { GEOMETRY_TABLE_NAME } from "./constants";
+import { GEOMETRY_TABLE_NAME, BATCH_SIZE } from "./constants";
 
 const isWhitespaceOnly = /^\s*$/;
 
@@ -56,7 +56,7 @@ export function processLine(tableName) {
   const throughFunc =
     tableName === GEOMETRY_TABLE_NAME
       ? through.obj
-      : throughConcurrent.obj.bind(throughConcurrent.obj, { maxConcurrency: 1000 });
+      : throughConcurrent.obj.bind(throughConcurrent.obj, { maxConcurrency: 100 });
 
   return throughFunc(function createLine(chunk, enc, cb) {
     const str = enc === "buffer" ? chunk.toString("utf8") : chunk;

@@ -1,4 +1,4 @@
-FROM node:12
+FROM node:13
 
 RUN apt-get update && \
   apt-get -y install git build-essential software-properties-common && \

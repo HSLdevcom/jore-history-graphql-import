@@ -14,7 +14,7 @@ import { catchFileError } from "./util/catchFileError";
 import { reportError, reportInfo } from "./monitor";
 import { createDbDump } from "./util/createDbDump";
 import { uploadDbDump } from "./util/uploadDbDump";
-import { ENVIRONMENT } from "./constants";
+import { ENVIRONMENT, QUEUE_SIZE } from "./constants";
 
 const getTableNameFromFileName = (filename) =>
   Object.entries(schema).find(
@@ -27,7 +27,7 @@ const asyncWait = (delay = 1000) =>
   });
 
 async function doFileImport(file) {
-  const queue = new PQueue({ concurrency: 80 });
+  const queue = new PQueue({ concurrency: QUEUE_SIZE });
   let activePromises = 0;
 
   const queueAdd = (promiseFn) => {
@@ -40,7 +40,8 @@ async function doFileImport(file) {
 
   const onQueueEmpty = async () => {
     while (activePromises > 0) {
-      await asyncWait(1000);
+      console.log(activePromises);
+      await asyncWait(10000);
     }
 
     await queue.onEmpty();

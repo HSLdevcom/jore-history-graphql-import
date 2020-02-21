@@ -4,6 +4,7 @@ import { scheduleImport, startScheduledImport } from "./schedule";
 import { server } from "./server";
 import { reportError, reportInfo } from "./monitor";
 import { runFtpImport } from "./importRunners";
+import { recoverFromCrash } from "./util/recoverFromCrash";
 
 const { knex } = getKnex();
 
@@ -31,6 +32,8 @@ export const endImport = () => {
 (async () => {
   console.log("Initializing DB...");
   await knex.migrate.latest();
+  
+  await recoverFromCrash()
 
   // This is the daily scheduled task that runs the import.
   scheduleImport(runFtpImport);

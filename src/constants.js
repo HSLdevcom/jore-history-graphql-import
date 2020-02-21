@@ -59,3 +59,6 @@ export const ENVIRONMENT = secretsEnv.ENVIRONMENT || "unknown";
 
 // There are some special considerations for the geometry table
 export const GEOMETRY_TABLE_NAME = "geometry";
+
+export const BATCH_SIZE = 2500
+export const QUEUE_SIZE = 5

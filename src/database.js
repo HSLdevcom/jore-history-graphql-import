@@ -7,7 +7,7 @@ import through from "through2";
 import { parseLine } from "./util/parseLine";
 import { createPrimaryKey } from "./util/createPrimaryKey";
 import { map, collect } from "etl";
-import { GEOMETRY_TABLE_NAME } from "./constants";
+import { GEOMETRY_TABLE_NAME, BATCH_SIZE } from "./constants";
 import throughConcurrent from "through2-concurrent";
 
 const { knex } = getKnex();
@@ -30,7 +30,7 @@ const createImportQuery = (tableName, primaryKeys, constraint) => async (data) =
 
   const [execS, execNs] = process.hrtime(time);
   const ms = (execS * NS_PER_SEC + execNs) / 1000000;
-  console.log(`${data.length } records of ${tableName} imported in ${ms} ms`);
+  console.log(`${data.length} records of ${tableName} imported in ${ms} ms`);
 
   return queryResult;
 };
@@ -110,7 +110,7 @@ const createLineParser = (tableName) => {
   const throughFunc =
     tableName === GEOMETRY_TABLE_NAME
       ? through.obj
-      : throughConcurrent.obj.bind(throughConcurrent.obj, { maxConcurrency: 1000 });
+      : throughConcurrent.obj.bind(throughConcurrent.obj, { maxConcurrency: BATCH_SIZE });
 
   return throughFunc((line, enc, cb) => {
     if (!line) {
@@ -170,7 +170,7 @@ export async function createImportStreamForGeometryTable(
 
   lineParser
     .pipe(through.obj((line, enc, cb) => cb(null, createGroup(line))))
-    .pipe(collect(1000, 100))
+    .pipe(collect(BATCH_SIZE, 500))
     .pipe(
       map((batch) => {
         // Convert the groups of points into geometry objects
@@ -194,7 +194,7 @@ export const createImportStreamForTable = async (tableName, queueAdd) => {
   const importer = createImportQuery(tableName, primaryKeys, constraint);
   const lineParser = createLineParser(tableName);
 
-  lineParser.pipe(collect(1000, 100)).pipe(
+  lineParser.pipe(collect(BATCH_SIZE, 500)).pipe(
     map((itemData) => {
       let insertItems = itemData;
 
