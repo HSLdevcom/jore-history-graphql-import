@@ -32,8 +32,11 @@ export const endImport = () => {
 (async () => {
   console.log("Initializing DB...");
   await knex.migrate.latest();
-  
-  await recoverFromCrash()
+
+  server(() => isImporting);
+  await reportInfo("Server started.");
+
+  await recoverFromCrash();
 
   // This is the daily scheduled task that runs the import.
   scheduleImport(runFtpImport);
@@ -41,23 +44,20 @@ export const endImport = () => {
   // Start the task for the daily import as soon as the server starts.
   // This will only start the timer, not run the task.
   startScheduledImport();
-
-  server(() => isImporting);
-  await reportInfo("Server started.");
 })();
 
 const onExit = async () => {
   console.log("Ctrl-C...");
   await reportInfo("Process was closed, probably on purpose.");
   process.exit(0);
-}
+};
 
 const onCrash = async (e) => {
   console.log("Uncaught Exception...");
   console.error(e);
   await reportError(`Uncaught exception: ${e.message || "Something happened!"}`);
   process.exit(99);
-}
+};
 
 // catch ctrl+c event and exit normally
 process.on("SIGINT", onExit);
