@@ -837,6 +837,8 @@ module.exports = {
         length: 2,
         name: "scope",
         type: "string",
+        index: true,
+        primary: true,
       },
       {
         length: 2,
