@@ -9,6 +9,8 @@ import { createPrimaryKey } from "./util/createPrimaryKey";
 import { map, collect } from "etl";
 import { GEOMETRY_TABLE_NAME, BATCH_SIZE } from "./constants";
 import throughConcurrent from "through2-concurrent";
+import streamFilter from "stream-filter";
+import { removeFutureRows } from "./util/futureFilter";
 
 const { knex } = getKnex();
 const SCHEMA = "jore";
@@ -194,7 +196,9 @@ export const createImportStreamForTable = async (tableName, queueAdd) => {
   const importer = createImportQuery(tableName, primaryKeys, constraint);
   const lineParser = createLineParser(tableName);
 
-  lineParser.pipe(collect(BATCH_SIZE, 500)).pipe(
+  lineParser
+    .pipe(streamFilter(removeFutureRows, { objectMode: true }))
+    .pipe(collect(BATCH_SIZE, 500)).pipe(
     map((itemData) => {
       let insertItems = itemData;
 

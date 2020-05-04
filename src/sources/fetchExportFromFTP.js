@@ -58,7 +58,7 @@ export async function fetchExportFromFTP() {
   console.log(`Newest export is ${newestExportName}`);
   console.log(
     `Latest imported export is ${get(latestImported, "filename")}${
-      !latestImported.success ? ", which FAILED." : ""
+      !get(latestImported, "success", false) ? ", which FAILED." : ""
     }`,
   );
 
@@ -67,8 +67,8 @@ export async function fetchExportFromFTP() {
   // => download and import the archive.
   if (
     !latestImported ||
-    newestExportName !== get(latestImported, "filename") ||
-    (!latestImported.success && latestImported.import_end !== null)
+    (newestExportName !== get(latestImported, "filename") ||
+      (!latestImported.success && latestImported.import_end !== null))
   ) {
     // The archive will be downloaded to `downloads`.
     await fs.ensureDir(path.join(cwd, "downloads"));

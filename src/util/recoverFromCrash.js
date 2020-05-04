@@ -10,7 +10,7 @@ export async function recoverFromCrash() {
   const latestImport = await getLatestImportedFile();
 
   // Mark it as completed but failed, then retry.
-  if (!latestImport.import_end && !latestImport.file_error) {
+  if (latestImport && !latestImport.import_end && !latestImport.file_error) {
     await importCompleted(latestImport.filename, false);
     // Retry the import
     await runFtpImport();
