@@ -823,7 +823,6 @@ module.exports = {
         length: 8,
         name: "date_in_effect",
         type: "date",
-        primary: true,
         notNullable: true,
       },
       {
@@ -838,7 +837,6 @@ module.exports = {
         name: "scope",
         type: "string",
         index: true,
-        primary: true,
       },
       {
         length: 2,
@@ -860,5 +858,6 @@ module.exports = {
         index: true,
       },
     ],
+    primary: ["date_in_effect", "scope"],
   },
 };
