@@ -36,7 +36,7 @@ export const JORE_PG_CONNECTION = {
   user: secretsEnv.JORE_POSTGRES_USER,
   password: secretsEnv.JORE_POSTGRES_PASSWORD,
   database: secretsEnv.JORE_POSTGRES_DB,
-  ssl: true
+  ssl: secretsEnv.JORE_POSTGRES_SSL === "true",
 };
 
 export const FTP_USERNAME = secretsEnv.FTP_USERNAME || "";
@@ -60,5 +60,5 @@ export const ENVIRONMENT = secretsEnv.ENVIRONMENT || "unknown";
 // There are some special considerations for the geometry table
 export const GEOMETRY_TABLE_NAME = "geometry";
 
-export const BATCH_SIZE = 2500
-export const QUEUE_SIZE = 5
+export const BATCH_SIZE = 2500;
+export const QUEUE_SIZE = 5;
