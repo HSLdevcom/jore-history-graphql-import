@@ -198,17 +198,18 @@ export const createImportStreamForTable = async (tableName, queueAdd) => {
 
   lineParser
     .pipe(streamFilter(removeFutureRows, { objectMode: true }))
-    .pipe(collect(BATCH_SIZE, 500)).pipe(
-    map((itemData) => {
-      let insertItems = itemData;
+    .pipe(collect(BATCH_SIZE, 500))
+    .pipe(
+      map((itemData) => {
+        let insertItems = itemData;
 
-      if (primaryKeys.length !== 0) {
-        insertItems = uniqBy(itemData, (item) => createPrimaryKey(item, primaryKeys));
-      }
+        if (primaryKeys.length !== 0) {
+          insertItems = uniqBy(itemData, (item) => createPrimaryKey(item, primaryKeys));
+        }
 
-      queueAdd(() => importer(insertItems));
-    }),
-  );
+        queueAdd(() => importer(insertItems));
+      }),
+    );
 
   return lineParser;
 };

@@ -3,8 +3,10 @@
 .gitignore
 node_modules
 postgres-data
+disabled_migrations
 downloads
 uploads
+data
 source
 .env
 dumps
