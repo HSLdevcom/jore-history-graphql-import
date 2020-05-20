@@ -15,37 +15,21 @@ import { reportError, reportInfo } from "./monitor";
 import { createDbDump } from "./util/createDbDump";
 import { uploadDbDump } from "./util/uploadDbDump";
 import { ENVIRONMENT, QUEUE_SIZE } from "./constants";
+import { cleanupRowsFromFile } from "./cleanRemovedRows";
+import { createQueue } from "./util/createQueue";
 
 const getTableNameFromFileName = (filename) =>
   Object.entries(schema).find(
     ([, { filename: schemaFilename }]) => filename === schemaFilename,
   )[0];
 
-const asyncWait = (delay = 1000) =>
+export const asyncWait = (delay = 1000) =>
   new Promise((resolve) => {
     setTimeout(resolve, delay);
   });
 
 async function doFileImport(file) {
-  const queue = new PQueue({ concurrency: QUEUE_SIZE });
-  let activePromises = 0;
-
-  const queueAdd = (promiseFn) => {
-    queue.add(promiseFn).then(() => {
-      activePromises -= 1;
-    });
-
-    activePromises += 1;
-  };
-
-  const onQueueEmpty = async () => {
-    while (activePromises > 0) {
-      console.log(activePromises);
-      await asyncWait(10000);
-    }
-
-    await queue.onEmpty();
-  };
+  const { queueAdd, onQueueEmpty } = createQueue();
 
   await new Promise((resolve, reject) => {
     const tableName = getTableNameFromFileName(file.path);
@@ -87,12 +71,21 @@ export async function importFile(filePath) {
 
   await startImport(fileName);
 
+  let selectedRemoveFiles = selectedFiles.map(
+    (f) => `${f.replace(".dat", "")}_removed.dat`,
+  );
+
   let chosenFiles = [];
+  let chosenRemoveFiles = [];
 
   try {
     console.log("Unpacking and processing the archive...");
     const directory = await Open.file(filePath);
+
     chosenFiles = directory.files.filter((file) => selectedFiles.includes(file.path));
+    chosenRemoveFiles = directory.files.filter((file) =>
+      selectedRemoveFiles.includes(file.path),
+    );
   } catch (err) {
     const [execDuration] = process.hrtime(execStart);
     await catchFileError(filePath, execDuration);
@@ -102,9 +95,13 @@ export async function importFile(filePath) {
   try {
     console.log("Importing the data...");
 
-    for (const file of chosenFiles) {
-      await doFileImport(file);
+    for (const file of chosenRemoveFiles) {
+      await cleanupRowsFromFile(file);
     }
+
+    /*for (const file of chosenFiles) {
+      await doFileImport(file);
+    }*/
 
     console.log("Finishing up...");
   } catch (err) {

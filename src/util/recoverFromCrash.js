@@ -1,5 +1,6 @@
 import { getLatestImportedFile, importCompleted } from "../importStatus";
 import { runFtpImport } from "../importRunners";
+import { DEBUG } from "../constants";
 
 /**
  * If the process crashes, we need to mark the import that was in progress
@@ -10,7 +11,7 @@ export async function recoverFromCrash() {
   const latestImport = await getLatestImportedFile();
 
   // Mark it as completed but failed, then retry.
-  if (latestImport && !latestImport.import_end && !latestImport.file_error) {
+  if (!DEBUG && latestImport && !latestImport.import_end && !latestImport.file_error) {
     await importCompleted(latestImport.filename, false);
     // Retry the import
     await runFtpImport();

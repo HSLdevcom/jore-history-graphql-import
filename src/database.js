@@ -14,7 +14,7 @@ import { removeFutureRows } from "./util/futureFilter";
 
 const { knex } = getKnex();
 const SCHEMA = "jore";
-const NS_PER_SEC = 1e9; // For tracking performance
+export const NS_PER_SEC = 1e9; // For tracking performance
 
 // Create the upsert query with a transaction,
 const createImportQuery = (tableName, primaryKeys, constraint) => async (data) => {
@@ -82,7 +82,7 @@ export function createLineGrouper(groupKeys) {
   };
 }
 
-function getIndexForTable(tableName) {
+export function getIndexForTable(tableName) {
   const tableSchema = get(schema, tableName, false);
   const compoundPrimary = get(tableSchema, "primary", []);
 
@@ -105,7 +105,7 @@ function getIndexForTable(tableName) {
   return uniq([...indices, ...compoundPrimary]);
 }
 
-const createLineParser = (tableName) => {
+export const createLineParser = (tableName) => {
   const { fields, lineSchema = fields } = schema[tableName] || {};
   let linesReceived = false;
 
