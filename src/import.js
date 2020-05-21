@@ -23,7 +23,7 @@ const getTableNameFromFileName = (filename) =>
   )[0];
 
 async function doFileImport(file) {
-  const { queueAdd, onQueueEmpty } = createQueue();
+  const { queueAdd, onQueueEmpty } = createQueue(10);
 
   await new Promise((resolve, reject) => {
     const tableName = getTableNameFromFileName(file.path);

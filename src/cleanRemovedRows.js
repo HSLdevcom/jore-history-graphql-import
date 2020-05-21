@@ -1,12 +1,13 @@
 import schema from "./schema";
 import iconv from "iconv-lite";
 import split from "split2";
+import get from "lodash/get";
 import { processLine } from "./preprocess";
 import { createQueue } from "./util/createQueue";
 import { map, collect } from "etl";
 import { getIndexForTable, createLineParser, NS_PER_SEC } from "./database";
 import { getKnex } from "./knex";
-import { BATCH_SIZE } from "./constants";
+import { GEOMETRY_TABLE_NAME } from "./constants";
 
 const { knex } = getKnex();
 
@@ -51,13 +52,18 @@ const createRemoveQuery = (tableName, primaryKeys, countRemoved) => async (dataB
   return queryResult;
 };
 
-async function createRemoveStreamForTable(tableName, queueAdd, countRemoved) {
+function createRemoveStreamForTable(tableName, queueAdd, countRemoved) {
   const primaryKeys = getIndexForTable(tableName);
+
+  if (primaryKeys.length === 0) {
+    console.log(`No primary keys found for table ${tableName}, skipping remove.`);
+    return false;
+  }
 
   const remover = createRemoveQuery(tableName, primaryKeys, countRemoved);
   const lineParser = createLineParser(tableName);
 
-  lineParser.pipe(collect(BATCH_SIZE, 1000)).pipe(
+  lineParser.pipe(collect(100, 1000)).pipe(
     map((itemBatch) => {
       queueAdd(() => remover(itemBatch));
     }),
@@ -81,31 +87,40 @@ export async function cleanupRowsFromFile(file) {
     time = process.hrtime();
     tableName = getTableNameFromFileName(file.path);
 
-    createRemoveStreamForTable(tableName, queueAdd, countRemoved).then((removeStream) => {
-      const readStream = file
-        .stream()
-        .pipe(iconv.decodeStream("ISO-8859-1"))
-        .pipe(iconv.encodeStream("utf8"))
-        .pipe(split())
-        .pipe(processLine(tableName));
+    if (tableName === GEOMETRY_TABLE_NAME) {
+      console.log("Not removing geometry table rows yet.");
+      return resolve(tableName);
+    }
 
-      readStream.on("error", (err) => {
-        removeStream.destroy(err);
+    let removeStream = createRemoveStreamForTable(tableName, queueAdd, countRemoved);
+
+    if (!removeStream) {
+      return resolve(tableName);
+    }
+
+    const readStream = file
+      .stream()
+      .pipe(iconv.decodeStream("ISO-8859-1"))
+      .pipe(iconv.encodeStream("utf8"))
+      .pipe(split())
+      .pipe(processLine(tableName));
+
+    readStream.on("error", (err) => {
+      removeStream.destroy(err);
+      reject(err);
+    });
+
+    readStream.pipe(removeStream);
+
+    removeStream
+      .on("finish", () => {
+        console.log(`Reading remove file for table ${tableName} finished.`);
+        resolve(tableName);
+      })
+      .on("error", (err) => {
+        readStream.destroy(err);
         reject(err);
       });
-
-      readStream.pipe(removeStream);
-
-      removeStream
-        .on("finish", () => {
-          console.log(`Reading remove file for table ${tableName} finished.`);
-          resolve(tableName);
-        })
-        .on("error", (err) => {
-          readStream.destroy(err);
-          reject(err);
-        });
-    });
   });
 
   await onQueueEmpty();

@@ -7,7 +7,7 @@ export const asyncWait = (delay = 1000) =>
   });
 
 export function createQueue(concurrency = QUEUE_SIZE) {
-  const queue = new PQueue({ concurrency });
+  const queue = new PQueue({ concurrency, autoStart: true });
   let activePromises = 0;
 
   const queueAdd = (promiseFn) => {
