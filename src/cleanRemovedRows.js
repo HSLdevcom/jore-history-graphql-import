@@ -1,13 +1,14 @@
 import schema from "./schema";
 import iconv from "iconv-lite";
 import split from "split2";
-import get from "lodash/get";
 import { processLine } from "./preprocess";
 import { createQueue } from "./util/createQueue";
 import { map, collect } from "etl";
 import { getIndexForTable, createLineParser, NS_PER_SEC } from "./database";
 import { getKnex } from "./knex";
 import { GEOMETRY_TABLE_NAME } from "./constants";
+import { uniqBy } from "lodash";
+import { createPrimaryKey } from "./util/createPrimaryKey";
 
 const { knex } = getKnex();
 
@@ -24,9 +25,18 @@ const createRemoveQuery = (tableName, primaryKeys, countRemoved) => async (dataB
 
   try {
     queryResult = await knex.transaction(async (trx) => {
+      let removeRows = dataBatch;
+
+      if (tableName === GEOMETRY_TABLE_NAME) {
+        // The raw geometry data is one row per point, which is combined into a line when importing.
+        // Thus there are many rows in the data which match the primary key. This causes deadlocks
+        // when deleting, so the rows need to be reduced to unique rows only.
+        removeRows = uniqBy(dataBatch, (item) => createPrimaryKey(item, primaryKeys));
+      }
+
       let removeQueries = [];
 
-      for (let data of dataBatch) {
+      for (let data of removeRows) {
         let whereFields = primaryKeys.map((pk) => `t.${pk}::text = '${data[pk]}'`);
 
         let removeQuery = trx.raw(
@@ -63,7 +73,15 @@ function createRemoveStreamForTable(tableName, queueAdd, countRemoved) {
   const remover = createRemoveQuery(tableName, primaryKeys, countRemoved);
   const lineParser = createLineParser(tableName);
 
-  lineParser.pipe(collect(100, 1000)).pipe(
+  // Collects all incoming data into one chunk.
+  // Needed for the geometry table as the rows must be unique.
+  function collectAll(data) {
+    this.buffer.push(data);
+  }
+
+  let collectArg = tableName === GEOMETRY_TABLE_NAME ? collectAll : 1000;
+
+  lineParser.pipe(collect(collectArg)).pipe(
     map((itemBatch) => {
       queueAdd(() => remover(itemBatch));
     }),
@@ -86,11 +104,6 @@ export async function cleanupRowsFromFile(file) {
   await new Promise((resolve, reject) => {
     time = process.hrtime();
     tableName = getTableNameFromFileName(file.path);
-
-    if (tableName === GEOMETRY_TABLE_NAME) {
-      console.log("Not removing geometry table rows yet.");
-      return resolve(tableName);
-    }
 
     let removeStream = createRemoveStreamForTable(tableName, queueAdd, countRemoved);
 
