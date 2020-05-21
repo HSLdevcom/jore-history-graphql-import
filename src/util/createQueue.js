@@ -1,9 +1,13 @@
 import PQueue from "p-queue";
 import { QUEUE_SIZE } from "../constants";
-import { asyncWait } from "../import";
 
-export function createQueue() {
-  const queue = new PQueue({ concurrency: QUEUE_SIZE });
+export const asyncWait = (delay = 1000) =>
+  new Promise((resolve) => {
+    setTimeout(resolve, delay);
+  });
+
+export function createQueue(concurrency = QUEUE_SIZE) {
+  const queue = new PQueue({ concurrency });
   let activePromises = 0;
 
   const queueAdd = (promiseFn) => {
@@ -16,7 +20,7 @@ export function createQueue() {
 
   const onQueueEmpty = async () => {
     while (activePromises > 0) {
-      console.log(activePromises);
+      console.log('Current queue length:', activePromises);
       await asyncWait(10000);
     }
 

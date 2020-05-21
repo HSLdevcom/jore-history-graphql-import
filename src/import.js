@@ -9,12 +9,11 @@ import { Open } from "unzipper";
 import schema from "./schema";
 import iconv from "iconv-lite";
 import split from "split2";
-import PQueue from "p-queue";
 import { catchFileError } from "./util/catchFileError";
 import { reportError, reportInfo } from "./monitor";
 import { createDbDump } from "./util/createDbDump";
 import { uploadDbDump } from "./util/uploadDbDump";
-import { ENVIRONMENT, QUEUE_SIZE } from "./constants";
+import { ENVIRONMENT } from "./constants";
 import { cleanupRowsFromFile } from "./cleanRemovedRows";
 import { createQueue } from "./util/createQueue";
 
@@ -22,11 +21,6 @@ const getTableNameFromFileName = (filename) =>
   Object.entries(schema).find(
     ([, { filename: schemaFilename }]) => filename === schemaFilename,
   )[0];
-
-export const asyncWait = (delay = 1000) =>
-  new Promise((resolve) => {
-    setTimeout(resolve, delay);
-  });
 
 async function doFileImport(file) {
   const { queueAdd, onQueueEmpty } = createQueue();
@@ -93,15 +87,17 @@ export async function importFile(filePath) {
   }
 
   try {
-    console.log("Importing the data...");
+    console.log("Removing deleted rows...");
 
     for (const file of chosenRemoveFiles) {
       await cleanupRowsFromFile(file);
     }
 
-    /*for (const file of chosenFiles) {
+    console.log("Importing the data...");
+
+    for (const file of chosenFiles) {
       await doFileImport(file);
-    }*/
+    }
 
     console.log("Finishing up...");
   } catch (err) {

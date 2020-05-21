@@ -3,9 +3,10 @@ import iconv from "iconv-lite";
 import split from "split2";
 import { processLine } from "./preprocess";
 import { createQueue } from "./util/createQueue";
-import { map } from "etl";
-import { getIndexForTable, createLineParser } from "./database";
+import { map, collect } from "etl";
+import { getIndexForTable, createLineParser, NS_PER_SEC } from "./database";
 import { getKnex } from "./knex";
+import { BATCH_SIZE } from "./constants";
 
 const { knex } = getKnex();
 
@@ -16,36 +17,49 @@ const getTableNameFromFileName = (filename) =>
   )[0];
 
 // Create the upsert query with a transaction,
-const createRemoveQuery = (tableName, primaryKeys) => async (data) => {
-  let queryResult;
+const createRemoveQuery = (tableName, primaryKeys, countRemoved) => async (dataBatch) => {
+  let queryResult = [];
   let tableId = `jore.${tableName}`;
 
-  let whereFields = primaryKeys.map((pk) => `t.${pk}::text = '${data[pk]}'`);
-
   try {
-    queryResult = await knex.raw(
-      `SELECT * FROM ?? t WHERE ${whereFields.join(" AND ")};`,
-      [tableId],
-    );
+    queryResult = await knex.transaction(async (trx) => {
+      let removeQueries = [];
 
-    console.log(queryResult)
+      for (let data of dataBatch) {
+        let whereFields = primaryKeys.map((pk) => `t.${pk}::text = '${data[pk]}'`);
+
+        let removeQuery = trx.raw(
+          `DELETE FROM ?? t WHERE ${whereFields.join(" AND ")};`,
+          [tableId],
+        );
+
+        removeQueries.push(removeQuery);
+      }
+
+      return Promise.all(removeQueries);
+    });
   } catch (err) {
-    queryResult = false;
-    console.log(err);
+    queryResult = [];
+    console.log("Remove transaction error:", err);
   }
+
+  let removedCount = queryResult.reduce((total, res) => total + res.rowCount, 0);
+  console.log("removed count:", removedCount);
+
+  countRemoved(removedCount);
 
   return queryResult;
 };
 
-async function createRemoveStreamForTable(tableName, queueAdd) {
+async function createRemoveStreamForTable(tableName, queueAdd, countRemoved) {
   const primaryKeys = getIndexForTable(tableName);
 
-  const importer = createRemoveQuery(tableName, primaryKeys);
+  const remover = createRemoveQuery(tableName, primaryKeys, countRemoved);
   const lineParser = createLineParser(tableName);
 
-  lineParser.pipe(
-    map((itemData) => {
-      queueAdd(() => importer(itemData));
+  lineParser.pipe(collect(BATCH_SIZE, 1000)).pipe(
+    map((itemBatch) => {
+      queueAdd(() => remover(itemBatch));
     }),
   );
 
@@ -53,12 +67,21 @@ async function createRemoveStreamForTable(tableName, queueAdd) {
 }
 
 export async function cleanupRowsFromFile(file) {
-  const { queueAdd, onQueueEmpty } = createQueue();
+  const { queueAdd, onQueueEmpty } = createQueue(100);
+  let removedRows = 0;
+
+  function countRemoved(removed = 0) {
+    removedRows += removed;
+  }
+
+  let time = [0, 0];
+  let tableName = "";
 
   await new Promise((resolve, reject) => {
-    const tableName = getTableNameFromFileName(file.path);
+    time = process.hrtime();
+    tableName = getTableNameFromFileName(file.path);
 
-    createRemoveStreamForTable(tableName, queueAdd).then((removeStream) => {
+    createRemoveStreamForTable(tableName, queueAdd, countRemoved).then((removeStream) => {
       const readStream = file
         .stream()
         .pipe(iconv.decodeStream("ISO-8859-1"))
@@ -75,7 +98,7 @@ export async function cleanupRowsFromFile(file) {
 
       removeStream
         .on("finish", () => {
-          console.log(`Reading file for table ${tableName} finished.`);
+          console.log(`Reading remove file for table ${tableName} finished.`);
           resolve(tableName);
         })
         .on("error", (err) => {
@@ -86,4 +109,8 @@ export async function cleanupRowsFromFile(file) {
   });
 
   await onQueueEmpty();
+
+  const [execS, execNs] = process.hrtime(time);
+  const ms = (execS * NS_PER_SEC + execNs) / 1000000;
+  console.log(`${removedRows} records of ${tableName} deleted in ${ms} ms`);
 }
