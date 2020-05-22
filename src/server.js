@@ -6,7 +6,7 @@ import { ADMIN_PASSWORD, PATH_PREFIX, SERVER_PORT } from "./constants";
 import { createEngine } from "express-react-views";
 import path from "path";
 import { getLatestImportedFile } from "./importStatus";
-import { getSelectedTableStatus, setTableOption, getRemoveOnlyStatus, toggleRemoveOnly } from "./selectedTables";
+import { getSelectedTableStatus, setTableOption, toggleRemoveEnabled, toggleImportEnabled, getRemoveEnabledStatus, getImportEnabledStatus } from "./selectedTables";
 import { createDbDump } from "./util/createDbDump";
 import { uploadDbDump } from "./util/uploadDbDump";
 import { reportError } from "./monitor";
@@ -51,7 +51,8 @@ export const server = (isImporting) => {
       isImporting: isImporting(),
       latestImportedFile,
       selectedTables: getSelectedTableStatus(),
-      removeOnly: getRemoveOnlyStatus()
+      removeEnabled: getRemoveEnabledStatus(),
+      importEnabled: getImportEnabledStatus(),
     });
   });
 
@@ -91,16 +92,23 @@ export const server = (isImporting) => {
   app.post("/select-tables", (req, res) => {
     const tableSettings = req.body;
 
-    const { ...enabledTables, remove_only } = Object.keys(tableSettings);
+    const {
+      remove_enabled = false,
+      import_enabled = false,
+      ...enabledTables
+    } = tableSettings;
+
+    let enabledTableNames = Object.keys(enabledTables);
+
     const allTables = Object.keys(getSelectedTableStatus());
 
     for (const tableName of allTables) {
-      const isEnabled = enabledTables.includes(tableName);
+      const isEnabled = enabledTableNames.includes(tableName);
       setTableOption(tableName, isEnabled);
     }
 
-    console.log(remove_only)
-    toggleRemoveOnly(remove_only)
+    toggleRemoveEnabled(!!remove_enabled);
+    toggleImportEnabled(!!import_enabled);
 
     res.redirect(PATH_PREFIX);
   });

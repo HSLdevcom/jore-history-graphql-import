@@ -10,6 +10,8 @@ const AdminView = ({
   isImporting,
   latestImportedFile,
   selectedTables,
+  importEnabled,
+  removeEnabled,
 }) => {
   return (
     <>
@@ -22,7 +24,12 @@ const AdminView = ({
       <hr />
       <DailyImport disabled={isImporting || manualDumpInProgress} />
       <UploadExport disabled={isImporting || manualDumpInProgress} />
-      <SelectTables disabled={isImporting} selectedTables={selectedTables} />
+      <SelectTables
+        disabled={isImporting}
+        selectedTables={selectedTables}
+        importEnabled={importEnabled}
+        removeEnabled={removeEnabled}
+      />
 
       <h3>Upload dump of DB</h3>
 

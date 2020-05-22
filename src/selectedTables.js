@@ -23,10 +23,23 @@ const selectedOptions = tableNames.reduce((tableOptions, tableName) => {
   return tableOptions;
 }, {});
 
-let removeOnly = false;
+let removeEnabled = true;
+let importEnabled = true;
 
-export const getRemoveOnlyStatus = () => {
-  return removeOnly;
+export const getRemoveEnabledStatus = () => {
+  return removeEnabled;
+};
+
+export const getImportEnabledStatus = () => {
+  return importEnabled;
+};
+
+export const toggleRemoveEnabled = (setTo = !removeEnabled) => {
+  removeEnabled = setTo;
+};
+
+export const toggleImportEnabled = (setTo = !importEnabled) => {
+  importEnabled = setTo;
 };
 
 export const getSelectedTables = () => {
@@ -50,10 +63,6 @@ export const setTableOption = (tableName, isEnabled = true) => {
   }
 
   return selectedOptions;
-};
-
-export const toggleRemoveOnly = (setTo = !removeOnly) => {
-  removeOnly = setTo;
 };
 
 export const getSelectedTableStatus = () => {

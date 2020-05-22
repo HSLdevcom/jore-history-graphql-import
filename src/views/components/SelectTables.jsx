@@ -1,7 +1,12 @@
 import React, { useCallback } from "react";
 import { PATH_PREFIX } from "../../constants";
 
-const SelectTables = ({ disabled = true, selectedTables, removeOnly }) => {
+const SelectTables = ({
+  disabled = true,
+  selectedTables,
+  importEnabled,
+  removeEnabled,
+}) => {
   const onChange = useCallback(() => {}, []);
 
   return (
@@ -31,16 +36,31 @@ const SelectTables = ({ disabled = true, selectedTables, removeOnly }) => {
               </li>
             ))}
           </ul>
-          <label>
-            <input
-              type="checkbox"
-              name="remove_only"
-              onChange={onChange}
-              value="remove_only"
-              checked={!!removeOnly}
-            /> Remove only
-          </label>
-          <div style={{marginTop: '1rem'}}>
+          <div>
+            <label>
+              <input
+                type="checkbox"
+                name="import_enabled"
+                onChange={onChange}
+                value="import_enabled"
+                checked={!!importEnabled}
+              />{" "}
+              Import enabled
+            </label>
+          </div>
+          <div>
+            <label>
+              <input
+                type="checkbox"
+                name="remove_enabled"
+                onChange={onChange}
+                value="remove_enabled"
+                checked={!!removeEnabled}
+              />{" "}
+              Remove enabled
+            </label>
+          </div>
+          <div style={{ marginTop: "1rem" }}>
             <input type="submit" value="Set tables" />
           </div>
         </fieldset>

@@ -1,6 +1,10 @@
 // stream that provides the data.
 // Downloads the export from the default source and runs the import.
-import { getSelectedTables } from "./selectedTables";
+import {
+  getSelectedTables,
+  getImportEnabledStatus,
+  getRemoveEnabledStatus,
+} from "./selectedTables";
 import { startImport, importCompleted } from "./importStatus";
 import { createImportStreamForTable } from "./database";
 import { processLine } from "./preprocess";
@@ -58,10 +62,26 @@ async function doFileImport(file) {
   await onQueueEmpty();
 }
 
+// Imports the file ar the path. Removes rows listed in the *_removed.dat files.
+// Return true to signal a successful run that should NOT be retried, return false
+// to signal a failed run that should be retried. Return true even if "failed"
+// if retries are not possible for the current condition.
 export async function importFile(filePath) {
   const execStart = process.hrtime();
   const { selectedFiles } = getSelectedTables();
   const fileName = path.basename(filePath);
+
+  let importEnabled = getImportEnabledStatus();
+  let removeEnabled = getRemoveEnabledStatus();
+
+  if (!importEnabled && !removeEnabled) {
+    // This is a user error, but the run is technically successful in that it
+    // should't be retried. User action is needed to enable either or both modes.
+    let message = "Neither import nor remove modes are enabled. Doing nothing.";
+    await reportInfo(message);
+    console.log(message);
+    return true; // true = success
+  }
 
   await startImport(fileName);
 
@@ -87,16 +107,23 @@ export async function importFile(filePath) {
   }
 
   try {
-    console.log("Removing deleted rows...");
+    // Remove goes first, otherwise there may be rows in the db that shouldn't
+    // be there and match the primary key of incoming items.
+    if (removeEnabled) {
+      console.log("Removing deleted rows...");
 
-    for (const file of chosenRemoveFiles) {
-      await cleanupRowsFromFile(file);
+      for (const file of chosenRemoveFiles) {
+        await cleanupRowsFromFile(file);
+      }
     }
 
-    console.log("Importing the data...");
+    // Run the import part of the operation
+    if (importEnabled) {
+      console.log("Importing the data...");
 
-    for (const file of chosenFiles) {
-      await doFileImport(file);
+      for (const file of chosenFiles) {
+        await doFileImport(file);
+      }
     }
 
     console.log("Finishing up...");
