@@ -6,7 +6,7 @@ import {
   getRemoveEnabledStatus,
 } from "./selectedTables";
 import { startImport, importCompleted } from "./importStatus";
-import { createImportStreamForTable } from "./database";
+import { createImportStreamForTable, vacuumAnalyze } from "./database";
 import { processLine } from "./preprocess";
 import path from "path";
 import { Open } from "unzipper";
@@ -139,6 +139,8 @@ export async function importFile(filePath) {
     await importCompleted(fileName, false, execDuration);
     return false;
   }
+
+  await vacuumAnalyze();
 
   if (ENVIRONMENT !== "local") {
     try {

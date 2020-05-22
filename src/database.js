@@ -205,3 +205,11 @@ export const createImportStreamForTable = async (tableName, queueAdd) => {
 
   return lineParser;
 };
+
+export const vacuumAnalyze = async () => {
+  let tables = ["departure", "geometry", "route", "route_segment", "stop"];
+
+  for (let table of tables) {
+    await knex.raw(`VACUUM ANALYZE ??;`, [`${SCHEMA}.${table}`]);
+  }
+};
