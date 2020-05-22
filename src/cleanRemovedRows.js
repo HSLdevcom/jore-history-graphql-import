@@ -25,6 +25,7 @@ const createRemoveQuery = (tableName, primaryKeys, countRemoved) => async (dataB
 
   try {
     queryResult = await knex.transaction(async (trx) => {
+      console.log(`Removing ${dataBatch.length} rows from ${tableName}.`)
       let removeRows = dataBatch;
 
       if (tableName === GEOMETRY_TABLE_NAME) {

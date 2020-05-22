@@ -107,7 +107,6 @@ export function getIndexForTable(tableName) {
 
 export const createLineParser = (tableName) => {
   const { fields, lineSchema = fields } = schema[tableName] || {};
-  let linesReceived = false;
 
   const throughFunc =
     tableName === GEOMETRY_TABLE_NAME
@@ -122,13 +121,6 @@ export const createLineParser = (tableName) => {
     }
 
     if (lineSchema) {
-      // This function runs on each line which would be too much to log.
-      // When receiving the first line of a table, log it and mark it as logged.
-      if (!linesReceived) {
-        console.log(`Importing ${tableName}...`);
-        linesReceived = true;
-      }
-
       try {
         // Parse the line and return it into the stream
         const parsedLine = parseLine(line, lineSchema);
