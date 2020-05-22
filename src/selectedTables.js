@@ -23,6 +23,12 @@ const selectedOptions = tableNames.reduce((tableOptions, tableName) => {
   return tableOptions;
 }, {});
 
+let removeOnly = false;
+
+export const getRemoveOnlyStatus = () => {
+  return removeOnly;
+};
+
 export const getSelectedTables = () => {
   const selectedTables = Object.entries(selectedOptions)
     .filter(([, isSelected]) => isSelected)
@@ -44,6 +50,10 @@ export const setTableOption = (tableName, isEnabled = true) => {
   }
 
   return selectedOptions;
+};
+
+export const toggleRemoveOnly = (setTo = !removeOnly) => {
+  removeOnly = setTo;
 };
 
 export const getSelectedTableStatus = () => {
