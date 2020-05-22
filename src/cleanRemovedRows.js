@@ -80,7 +80,7 @@ function createRemoveStreamForTable(tableName, queueAdd, countRemoved) {
     this.buffer.push(data);
   }
 
-  let collectArg = tableName === GEOMETRY_TABLE_NAME ? collectAll : 1000;
+  let collectArg = tableName === GEOMETRY_TABLE_NAME ? collectAll : 100;
 
   lineParser.pipe(collect(collectArg)).pipe(
     map((itemBatch) => {
@@ -92,7 +92,7 @@ function createRemoveStreamForTable(tableName, queueAdd, countRemoved) {
 }
 
 export async function cleanupRowsFromFile(file) {
-  const { queueAdd, onQueueEmpty } = createQueue(QUEUE_SIZE);
+  const { queueAdd, onQueueEmpty } = createQueue(20);
   let removedRows = 0;
 
   function countRemoved(removed = 0) {
