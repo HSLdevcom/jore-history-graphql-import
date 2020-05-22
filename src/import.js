@@ -17,7 +17,7 @@ import { catchFileError } from "./util/catchFileError";
 import { reportError, reportInfo } from "./monitor";
 import { createDbDump } from "./util/createDbDump";
 import { uploadDbDump } from "./util/uploadDbDump";
-import { ENVIRONMENT } from "./constants";
+import { ENVIRONMENT, QUEUE_SIZE } from "./constants";
 import { cleanupRowsFromFile } from "./cleanRemovedRows";
 import { createQueue } from "./util/createQueue";
 
@@ -27,7 +27,7 @@ const getTableNameFromFileName = (filename) =>
   )[0];
 
 async function doFileImport(file) {
-  const { queueAdd, onQueueEmpty } = createQueue(100);
+  const { queueAdd, onQueueEmpty } = createQueue(QUEUE_SIZE);
 
   await new Promise((resolve, reject) => {
     const tableName = getTableNameFromFileName(file.path);

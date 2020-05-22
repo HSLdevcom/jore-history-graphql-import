@@ -5,8 +5,10 @@ import { server } from "./server";
 import { reportError, reportInfo } from "./monitor";
 import { runFtpImport } from "./importRunners";
 import { recoverFromCrash } from "./util/recoverFromCrash";
+import { logQueryTime } from "./util/logQueryTime";
 
 const { knex } = getKnex();
+logQueryTime(knex);
 
 // The global state that informs the app if an import task is running.
 // Always check this state before starting an import.

@@ -6,7 +6,7 @@ import { createQueue } from "./util/createQueue";
 import { map, collect } from "etl";
 import { getIndexForTable, createLineParser, NS_PER_SEC } from "./database";
 import { getKnex } from "./knex";
-import { GEOMETRY_TABLE_NAME } from "./constants";
+import { GEOMETRY_TABLE_NAME, QUEUE_SIZE } from "./constants";
 import { uniqBy } from "lodash";
 import { createPrimaryKey } from "./util/createPrimaryKey";
 
@@ -92,7 +92,7 @@ function createRemoveStreamForTable(tableName, queueAdd, countRemoved) {
 }
 
 export async function cleanupRowsFromFile(file) {
-  const { queueAdd, onQueueEmpty } = createQueue(100);
+  const { queueAdd, onQueueEmpty } = createQueue(QUEUE_SIZE);
   let removedRows = 0;
 
   function countRemoved(removed = 0) {
