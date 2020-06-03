@@ -1,6 +1,5 @@
-import startOfDay from "date-fns/start_of_day";
 import addDays from "date-fns/add_days";
-import addHours from "date-fns/add_hours";
+import endOfDay from "date-fns/end_of_day";
 import isBefore from "date-fns/is_before";
 import parse from "date-fns/parse";
 import isValid from "date-fns/is_valid";
@@ -10,7 +9,7 @@ import schema from "../schema";
 // Remove rows which have a date field and the date is more than one day in the
 // future.
 
-let currentDate = addHours(startOfDay(addDays(new Date(), 1)), 3);
+let currentDate = endOfDay(addDays(new Date(), 2))
 let dateFields = [];
 
 for (let table of Object.values(schema)) {
