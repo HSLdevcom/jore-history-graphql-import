@@ -140,9 +140,15 @@ export async function importFile(filePath) {
     return false;
   }
 
-  await vacuumAnalyze();
-
   if (ENVIRONMENT !== "local") {
+    try {
+      await vacuumAnalyze();
+    } catch (err) {
+      await reportError(err.message || "Vacuum analyze failed.");
+      console.log(err.message || "Vacuum analyze failed.");
+      console.error(err);
+    }
+
     try {
       const dumpFilePath = await createDbDump();
       await uploadDbDump(dumpFilePath);

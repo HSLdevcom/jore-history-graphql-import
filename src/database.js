@@ -1,6 +1,6 @@
 import { upsert } from "./util/upsert";
 import schema from "./schema";
-import { pick, orderBy, get, uniq, uniqBy } from "lodash";
+import { pick, orderBy, get, uniq } from "lodash";
 import { getPrimaryConstraint } from "./util/getPrimaryConstraint";
 import { getKnex } from "./knex";
 import through from "through2";
@@ -193,13 +193,7 @@ export const createImportStreamForTable = async (tableName, queueAdd) => {
     .pipe(collect(BATCH_SIZE, 500))
     .pipe(
       map((itemData) => {
-        let insertItems = itemData;
-
-        if (primaryKeys.length !== 0) {
-          insertItems = uniqBy(itemData, (item) => createPrimaryKey(item, primaryKeys));
-        }
-
-        queueAdd(() => importer(insertItems));
+        queueAdd(() => importer(itemData));
       }),
     );
 
