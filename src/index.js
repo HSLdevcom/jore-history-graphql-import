@@ -50,7 +50,7 @@ export const endImport = () => {
 const onExit = async () => {
   console.log("Ctrl-C...");
   await reportInfo("Process was closed, probably on purpose.");
-  await knex.destroy()
+  await knex.destroy();
   process.exit(0);
 };
 
@@ -58,7 +58,7 @@ const onCrash = async (e) => {
   console.log("Uncaught Exception...");
   console.error(e);
   await reportError(`Uncaught exception: ${e.message || "Something happened!"}`);
-  await knex.destroy()
+  await knex.destroy();
   process.exit(99);
 };
 
