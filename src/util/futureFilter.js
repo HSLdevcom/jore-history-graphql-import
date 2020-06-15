@@ -9,7 +9,7 @@ import schema from "../schema";
 // Remove rows which have a date field and the date is more than one day in the
 // future.
 
-let currentDate = endOfDay(addDays(new Date(), 1));
+let currentDate = endOfDay(addDays(new Date(), 3));
 let dateFields = [];
 
 for (let table of Object.values(schema)) {
