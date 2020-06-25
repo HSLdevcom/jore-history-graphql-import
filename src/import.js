@@ -18,7 +18,6 @@ import { reportError, reportInfo } from "./monitor";
 import { createDbDump } from "./util/createDbDump";
 import { uploadDbDump } from "./util/uploadDbDump";
 import { ENVIRONMENT, QUEUE_SIZE } from "./constants";
-import { cleanupRowsFromFile } from "./cleanRemovedRows";
 import { createQueue } from "./util/createQueue";
 
 const getTableNameFromFileName = (filename) =>

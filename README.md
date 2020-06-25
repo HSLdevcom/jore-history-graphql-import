@@ -166,4 +166,24 @@ aaaabb
 
 This is the process that happens when an import is running:
 
-1.
+1. The cron scheduler triggers the update process. Alternatively, the process is triggered manually. `schedule.js`
+2. The import process is marked as started. `index.js`
+3. The FTP server is queried and the latest export archive is downloaded. In cases where the file has previously been found to be corrupted, or if it is already downloaded, nothing is downloaded from the server. `sources/fetchExportFromFTP.js`
+4. The archive is unpacked and each file is sent through the import pipeline. `import.js`
+5. For each file/table, the encoding is fixed to be utf-8. `import.js`
+6. The file stream is split into lines. `import.js`
+7. Each line is sent through a preprocessor which fixes the linebreaks and geometries. `preprocess.js`
+8. Then, the stream is piped to the database importer. `database.js`
+9. Each line is parsed into objects that can be processed easier with Javascript. `util/parseLine.js`
+10. Future rows are filtered out, since this is a history database and rows that take place in the future may yet change. `util/futureFilter.js`
+11. The item stream is collected into batches of at most 2000 (defined in `constants.js`). `database.js`
+12. The batch is sent to the actual import query. `database.js`
+13. The batched import query performs an "upsert" for each row in the batch. An upsert updates the row if found by the primary key, or inserts it if not found. If no keys or constraints are defined for the table, it just inserts everything.
+14. This process is done as much in parallel as possible for each table, using a queueing system to not overwhelm the database connection. When the queue is processed for all tables, the import is finished. `import.js`
+15. If not running locally (eg. in development), some tables are vacuumed and analyzed after the import. `import.js`
+16. Also if not running locally, the database is dumped and uploaded to Azure Blob Storage. `util/createDbDump.js` and `util/uploadDbDump.js`.
+17. Then the import is marked as finished and successful.
+
+The geometry table is handled slightly differently, in that lines are grouped and combined by the route.
+
+Errors or other exceptions are logged to the HSLdevcom slack (channel #transitlog-monitoring). In case the import was left unfinished or failed, it is retried the next time the service restarts.
