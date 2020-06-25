@@ -68,7 +68,7 @@ When running without Docker, any downloaded files will be in the `downloads` dir
 
 The app exposes an admin interface at port 8000 (by default) which is used to start an import, start an import from an uploaded file, selectively set tables or dump the database.
 
-To access the admin view of an instance running in the cloud (dev or production), use an SSH tunnel to the host that is running the app. Run, for example: `ssh -L 8000:localhost:8000 10.223.14.12` and then you can access the admin view at http://localhost:8000. Substitute the port number after `localhost` with the port you published from Docker and the private IP address with the one that your instance of the app uses.
+To access the admin view of an instance running in the cloud (dev or production), use an SSH tunnel to the host that is running the app. Run, for example: `ssh -L 8000:localhost:80 10.223.14.12` and then you can access the admin view at http://localhost:8000. Substitute the port number after `localhost` with the port you published from Docker and the private IP address with the one that your instance of the app uses.
 
 The admin interface will ask you for credentials. These are `admin` and whatever `ADMIN_PASSWORD` you set in the env config. For development, it is `admin` and `secret`.
 
@@ -100,8 +100,70 @@ Under normal operation, the importer will take a snapshot of the database and up
 
 The task of this importer is to download export files from an FTP server, open them, read them, and insert each row into the connected database. The export archive is produced every day except weekends at the end of the day, separately from this project.
 
-The export archive contains a number of `.dat` files, each corresponding to a table in the database. It also contains `[table]_removed.dat` files which lists all rows that have been removed since the previous export arhive.
+The export archive contains a number of `.dat` files, each corresponding to a table in the database. It also contains `[table]_removed.dat` files which lists all rows that have been removed since the previous export archive was generated.
+
+Each .dat file in the archive contains rows which are to be inserted in the database. The fields are not separated, but the schema contains the length of each field so that they can be read into database columns.
 
 ### Schema
 
-The schema of the database and the dat files is described in the `schema.js` file.
+The schema of the database and the dat files is described in the `schema.js` file. In most cases, the schema for a line in the .dat file matches the database schema, but for the geometry table they look different. To accommodate this, the schema for each table can have an additional `lineSchema` property to describe how the lines should be read.
+
+The top-level properties in the schema are table names. Under those, there is an object that describes the schema for the table, and, as mentioned earlier, an optional lineSchema property to describe the lines in the dat.
+
+The properties for each table schema is:
+
+```
+{
+  filename: name of the .dat file containing the data,
+  lineSchema (optional): fields in the .dat file if different than the database,
+  fields: fields in the database and .dat file,
+  primary (optional): fields that constitute the primary key of the table
+}
+```
+
+Each field description in the `fields` (or `lineSchema`) array is an object with the following properties:
+
+```
+{
+  length: number, how many characters the data is in the .dat file,
+  name: the name of the database column,
+  type: the type of the database column,
+  notNullable (optional): boolean, whether or not the field is nullable,
+  index (optional): boolean, true to create an index of this field,
+  primary (optional): boolean, true to make this field the primary key.
+}
+```
+
+During database initialization, the schema file is read and the tables are created in the database based on the information. Find the code for this in the `setup/createDb.js` file.
+
+### Data files
+
+As previously mentioned, the files containing the data to be imported are .dat files, with one row per item to insert. The fields are read based on the lengths defined in the schema.js file which have been written based on the documentation of the data files. For example, if field A is defined as being 4 characters long, and field B is defined as 2 characters long, this is the result:
+
+```
+// .dat row
+aaaabb
+
+// Schema entry
+{
+  name: 'a',
+  type: 'string',
+  length: 4
+}, {
+  name: 'b',
+  type: 'string',
+  length: 2
+}
+
+// Database row (as JS object)
+{
+  a: 'aaaa',
+  b: 'bb'
+}
+```
+
+### Importing
+
+This is the process that happens when an import is running:
+
+1.
