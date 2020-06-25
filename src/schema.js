@@ -555,7 +555,7 @@ module.exports = {
         type: "date",
       },
       {
-        length: 4,
+        length: 10,
         name: "train_number",
         type: "string",
       },
