@@ -549,6 +549,16 @@ module.exports = {
         name: "trunk_color_required",
         type: "integer",
       },
+      {
+        length: 8,
+        name: "date_modified",
+        type: "date",
+      },
+      {
+        length: 4,
+        name: "train_number",
+        type: "string",
+      },
     ],
     // This is a bit silly, I know, but it's the only way to uniquely identify a departure.
     primary: [

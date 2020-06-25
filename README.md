@@ -4,9 +4,9 @@ Data importer for [jore-history-graphql](https://github.com/HSLdevcom/jore-histo
 
 ### Prerequisites
 
-You need a Postgres database to run the import against. The app will apply the DB schema when strating.
+You need a Postgres database to run the import against. The app will apply the DB schema when starting.
 
-### Install
+### Build Docker container
 
 Build the container:
 
