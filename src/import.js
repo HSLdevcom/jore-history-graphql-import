@@ -109,13 +109,14 @@ export async function importFile(filePath) {
   try {
     // Remove goes first, otherwise there may be rows in the db that shouldn't
     // be there and match the primary key of incoming items.
-    if (removeEnabled) {
+    // DISABLED for now.
+    /*if (removeEnabled) {
       console.log("Removing deleted rows...");
 
       for (const file of chosenRemoveFiles) {
         await cleanupRowsFromFile(file);
       }
-    }
+    }*/
 
     // Run the import part of the operation
     if (importEnabled) {
