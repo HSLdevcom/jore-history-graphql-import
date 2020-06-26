@@ -6,6 +6,8 @@ Data importer for [jore-history-graphql](https://github.com/HSLdevcom/jore-histo
 
 You need a Postgres database to run the import against. The app will apply the DB schema when starting.
 
+> Ensure you are using the dev database (`transitlog-dev-cluster-c.postgres.database.azure.com`) or a local database when running locally.
+
 ### Build Docker container
 
 Build the container:
@@ -104,6 +106,8 @@ The export archive contains a number of `.dat` files, each corresponding to a ta
 
 Each .dat file in the archive contains rows which are to be inserted in the database. The fields are not separated, but the schema contains the length of each field so that they can be read into database columns.
 
+> Note that you need quite a lot of memory on your machine to run the importer as it handles a lot of data. The import may crash when running locally. It is a good idea to exclude the `departures` table from any test imports that you do to both lower the memory requirements of the import and make it complete faster.
+
 ### Schema
 
 The schema of the database and the dat files is described in the `schema.js` file. In most cases, the schema for a line in the .dat file matches the database schema, but for the geometry table they look different. To accommodate this, the schema for each table can have an additional `lineSchema` property to describe how the lines should be read.
@@ -138,7 +142,7 @@ During database initialization, the schema file is read and the tables are creat
 
 ### Data files
 
-As previously mentioned, the files containing the data to be imported are .dat files, with one row per item to insert. The fields are read based on the lengths defined in the schema.js file which have been written based on the documentation of the data files. For example, if field A is defined as being 4 characters long, and field B is defined as 2 characters long, this is the result:
+The files containing the data to be imported are .dat files, with one row per item to insert. The fields are read based on the lengths defined in the schema.js file which have been written based on the documentation of the data files. For example, if field A is defined as being 4 characters long, and field B is defined as 2 characters long, this is the result:
 
 ```
 // .dat row
@@ -161,6 +165,12 @@ aaaabb
   b: 'bb'
 }
 ```
+
+### Primary key
+
+A primary key has been added to most tables. The primary key is used during both import and removal to identify rows.
+
+During the removal process, the primary key of each line in the remove-files is calculated. Any rows in the database matching the primary key is removed.
 
 ### Importing
 
@@ -186,4 +196,30 @@ This is the process that happens when an import is running:
 
 The geometry table is handled slightly differently, in that lines are grouped and combined by the route.
 
-Errors or other exceptions are logged to the HSLdevcom slack (channel #transitlog-monitoring). In case the import was left unfinished or failed, it is retried the next time the service restarts.
+Errors or other exceptions are logged to the HSLdevcom slack (channel #transitlog-monitoring). In case the import was left unfinished or failed (after a server crash for example), it is retried the next time the service restarts.
+
+### Tips and tricks
+
+#### Delete the row for the file in import_status
+
+If you need to reimport a file, you can enter the database and find the `public.import_status` table. This is the table that records all imported archives and marks them as complete. To reimport a file on an instance of the importer that is running without `DEBUG=true`, delete the row where `filename` equals the name of the file you're trying to import or set `success=false`.
+
+#### Explore the raw .dat files
+
+To check the dat files for data, use the command line. Many of the files are huge and cannot be opened in normal code editors.
+
+Get an export archive either from the `downloads` directory or from the FTP server directly. Extract the .dat file you want to explore from the archive. The `aikat.dat` file is used here as an example. This file contains all departures and is the largest one.
+
+Check the schema definition for how long the fields are, then you can build grep queries and find what the .dat file contains.
+
+Lis the first 10 lines:
+
+```shell script
+head -n 10 aikat.dat
+```
+
+Find all lines for route 1001/1 on wednesdays from stop `1050417`:
+
+```shell script
+less aikat.dat | grep "10504171001  1Ke"
+```
