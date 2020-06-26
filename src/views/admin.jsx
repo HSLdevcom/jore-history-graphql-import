@@ -15,7 +15,7 @@ const AdminView = ({
 }) => {
   return (
     <>
-      <small>Version 1.2</small>
+      <small>Version 1.3</small>
       <h1>JORE history import admin</h1>
       <StatusIndicator
         isImporting={isImporting}
