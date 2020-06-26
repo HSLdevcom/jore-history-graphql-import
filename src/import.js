@@ -19,6 +19,7 @@ import { createDbDump } from "./util/createDbDump";
 import { uploadDbDump } from "./util/uploadDbDump";
 import { ENVIRONMENT, QUEUE_SIZE } from "./constants";
 import { createQueue } from "./util/createQueue";
+import { cleanupRowsFromFile } from "./cleanRemovedRows";
 
 const getTableNameFromFileName = (filename) =>
   Object.entries(schema).find(
@@ -108,14 +109,13 @@ export async function importFile(filePath) {
   try {
     // Remove goes first, otherwise there may be rows in the db that shouldn't
     // be there and match the primary key of incoming items.
-    // DISABLED for now.
-    /*if (removeEnabled) {
+    if (removeEnabled) {
       console.log("Removing deleted rows...");
 
       for (const file of chosenRemoveFiles) {
         await cleanupRowsFromFile(file);
       }
-    }*/
+    }
 
     // Run the import part of the operation
     if (importEnabled) {
