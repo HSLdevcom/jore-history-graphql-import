@@ -141,13 +141,13 @@ export async function importFile(filePath) {
   }
 
   if (ENVIRONMENT !== "local") {
-    try {
+    /*try {
       await vacuumAnalyze();
     } catch (err) {
       await reportError(err.message || "Vacuum analyze failed.");
       console.log(err.message || "Vacuum analyze failed.");
       console.error(err);
-    }
+    }*/
 
     try {
       const dumpFilePath = await createDbDump();
