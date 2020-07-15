@@ -223,3 +223,12 @@ Find all lines for route 1001/1 on wednesdays from stop `1050417`:
 ```shell script
 less aikat.dat | grep "10504171001  1Ke"
 ```
+
+### Access logs
+
+Once connected to an instance, check logs:
+
+```
+$ docker exec -it 42f257a81b9c sh
+$ yarn run forever logs 0 -f
+```
