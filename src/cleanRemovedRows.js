@@ -18,14 +18,14 @@ const getTableNameFromFileName = (filename) =>
       filename === `${schemaFilename.replace(".dat", "")}_removed.dat`,
   )[0];
 
-// Create the upsert query with a transaction,
+// Create the remove query with a transaction,
 const createRemoveQuery = (tableName, primaryKeys, countRemoved) => async (dataBatch) => {
   let queryResult = [];
   let tableId = `jore.${tableName}`;
 
   try {
     queryResult = await knex.transaction(async (trx) => {
-      console.log(`Removing ${dataBatch.length} rows from ${tableName}.`)
+      console.log(`Removing ${dataBatch.length} rows from ${tableName}.`);
       let removeRows = dataBatch;
 
       if (tableName === GEOMETRY_TABLE_NAME) {
@@ -51,7 +51,6 @@ const createRemoveQuery = (tableName, primaryKeys, countRemoved) => async (dataB
       return Promise.all(removeQueries);
     });
   } catch (err) {
-    queryResult = [];
     console.log("Remove transaction error:", err);
   }
 
@@ -80,6 +79,7 @@ function createRemoveStreamForTable(tableName, queueAdd, countRemoved) {
     this.buffer.push(data);
   }
 
+  // How many rows to collect in each chunk. Geometry table collects everything into a single chunk.
   let collectArg = tableName === GEOMETRY_TABLE_NAME ? collectAll : 100;
 
   lineParser.pipe(collect(collectArg)).pipe(

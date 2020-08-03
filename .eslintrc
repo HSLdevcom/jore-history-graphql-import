@@ -18,6 +18,8 @@
     "no-param-reassign": "off",
     "no-restricted-globals": "off",
     "no-nested-ternary": "off",
+    "no-var": "off",
+    "no-redeclare": "off",
     "import/prefer-default-export": "off",
     "prettier/prettier": true
   },
