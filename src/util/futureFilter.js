@@ -23,10 +23,10 @@ for (let table of Object.values(schema)) {
   }
 }
 
-export function createFutureRowsFilter(item) {
+export function createFutureRowsFilter() {
   let currentDate = endOfDay(addDays(new Date(), 4));
 
-  return () => {
+  return (item) => {
     let itemKeys = Object.keys(item);
     let itemDateFields = intersection(itemKeys, dateFields);
 
