@@ -12,5 +12,6 @@ exports.down = async function(knex) {
     path.join(__dirname, "../src/setup", "dropSchema.sql"),
     "utf8",
   );
+
   return knex.raw(dropSchemaSQL);
 };

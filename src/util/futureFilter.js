@@ -9,7 +9,6 @@ import schema from "../schema";
 // Remove rows which have a date field and the date is more than one day in the
 // future.
 
-let currentDate = endOfDay(addDays(new Date(), 3));
 let dateFields = [];
 
 for (let table of Object.values(schema)) {
@@ -24,21 +23,25 @@ for (let table of Object.values(schema)) {
   }
 }
 
-export function removeFutureRows(item) {
-  let itemKeys = Object.keys(item);
-  let itemDateFields = intersection(itemKeys, dateFields);
+export function createFutureRowsFilter(item) {
+  let currentDate = endOfDay(addDays(new Date(), 4));
 
-  if (itemDateFields.length !== 0) {
-    let useField = itemDateFields[0];
-    let fieldValue = item[useField];
-    let dateValue = parse(fieldValue);
+  return () => {
+    let itemKeys = Object.keys(item);
+    let itemDateFields = intersection(itemKeys, dateFields);
 
-    if (fieldValue && isValid(dateValue)) {
-      return isBefore(dateValue, currentDate);
+    if (itemDateFields.length === 0) {
+      return true;
+    } else {
+      let useField = itemDateFields[0];
+      let fieldValue = item[useField];
+      let dateValue = parse(fieldValue);
+
+      if (fieldValue && isValid(dateValue)) {
+        return isBefore(dateValue, currentDate);
+      }
+
+      return false;
     }
-
-    return false;
-  }
-
-  return true;
+  };
 }
