@@ -39,7 +39,7 @@
     "express-react-views": "^0.11.0",
     "forever": "^1.0.0",
     "fs-extra": "^7.0.0",
-    "ftp-srv": "^4.1.0",
+    "ftp-srv": "^4.3.4",
     "got": "^10.0.4",
     "iconv-lite": "^0.4.24",
     "knex": "^0.20.8",
