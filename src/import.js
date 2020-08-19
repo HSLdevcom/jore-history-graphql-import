@@ -140,14 +140,14 @@ export async function importFile(filePath) {
     return false;
   }
 
-  if (ENVIRONMENT !== "local") {
-    /*try {
+  /*if (ENVIRONMENT !== "local") {
+    try {
       await vacuumAnalyze();
     } catch (err) {
       await reportError(err.message || "Vacuum analyze failed.");
       console.log(err.message || "Vacuum analyze failed.");
       console.error(err);
-    }*/
+    }
 
     try {
       const dumpFilePath = await createDbDump();
@@ -157,7 +157,7 @@ export async function importFile(filePath) {
       console.log(err.message || "DB upload failed.");
       console.error(err);
     }
-  }
+  }*/
 
   const [execDuration] = process.hrtime(execStart);
   await importCompleted(fileName, true, execDuration);
