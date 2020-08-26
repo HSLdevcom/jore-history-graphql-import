@@ -140,7 +140,7 @@ export async function importFile(filePath) {
     return false;
   }
 
-  /*if (ENVIRONMENT !== "local") {
+  if (ENVIRONMENT !== "local") {
     try {
       await vacuumAnalyze();
     } catch (err) {
@@ -157,7 +157,7 @@ export async function importFile(filePath) {
       console.log(err.message || "DB upload failed.");
       console.error(err);
     }
-  }*/
+  }
 
   const [execDuration] = process.hrtime(execStart);
   await importCompleted(fileName, true, execDuration);
