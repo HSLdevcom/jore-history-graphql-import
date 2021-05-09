@@ -44,7 +44,7 @@
     "iconv-lite": "^0.4.24",
     "knex": "^0.20.8",
     "knex-postgis": "^0.10.0",
-    "lodash": "^4.17.10",
+    "lodash": "^4.17.21",
     "lru-cache": "^5.1.1",
     "p-map": "^2.1.0",
     "p-queue": "^3.0.0",
