@@ -3,8 +3,35 @@ import { JORE_PG_CONNECTION } from "../constants";
 import path from "path";
 import fs from "fs-extra";
 
+
+const MAX_FILE_AGE = 3600000 * 24 * 120; // 14 days
+const MIN_FILE_COUNT = 10;
 const cwd = process.cwd();
 const dumpsDir = path.join(cwd, "dumps");
+
+export const deleteFiles = ({ filesDir, minFileCount }) => {
+  fs.readdir(filesDir, (err, files) => {
+    if (files.length < minFileCount) return;
+    files.forEach((file) => {
+      const removableFile = path.join(filesDir, file);
+      fs.stat(removableFile, async (err, stat) => {
+        if (err) {
+          return console.error(err);
+        }
+        const now = new Date().getTime();
+        const endTime = new Date(stat.ctime).getTime() + MAX_FILE_AGE;
+        if (now > endTime) {
+          return fs.remove(removableFile, async (err) => {
+            if (err) {
+              return console.error(err);
+            }
+            console.log(`Deleted ${removableFile}`);
+          });
+        }
+      });
+    });
+  });
+};
 
 export const createDbDump = async () => {
   console.log("Creating a DB dump");
@@ -19,6 +46,8 @@ export const createDbDump = async () => {
   const fileName = "jore_dump_history_rolling";
   const filePath = path.join(dumpsDir, fileName);
   const fileExists = await fs.pathExists(filePath);
+
+  deleteFiles({ filesDir: path.join(cwd, "downloads"), minFileCount: MIN_FILE_COUNT });
 
   if (fileExists) {
     // Remove the old dump if it exists
