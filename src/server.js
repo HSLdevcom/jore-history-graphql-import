@@ -9,7 +9,7 @@ import { getLatestImportedFile } from "./importStatus";
 import { getSelectedTableStatus, setTableOption, toggleRemoveEnabled, toggleImportEnabled, getRemoveEnabledStatus, getImportEnabledStatus } from "./selectedTables";
 import { createDbDump } from "./util/createDbDump";
 import { uploadDbDump } from "./util/uploadDbDump";
-import { reportError } from "./monitor";
+import { reportError, reportInfo } from "./monitor";
 import { handleUploadedFile } from "./util/handleUploadedFile";
 import { runFileImport, runFtpImport } from "./importRunners";
 
@@ -130,6 +130,6 @@ export const server = (isImporting) => {
 
   app.listen(SERVER_PORT, () => {
     console.log(`Server is listening on port ${SERVER_PORT}`);
-    // reportInfo("Server started.")
+    reportInfo("Server started.")
   });
 };
