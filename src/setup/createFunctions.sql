@@ -48,6 +48,7 @@ select case
                    when '07' then 'FERRY'::jore.MODE
                    when '12' then 'RAIL'::jore.MODE
                    when '13' then 'RAIL'::jore.MODE
+                   when '40' then 'L_RAIL'::jore.MODE
                    else 'BUS'::jore.MODE
                    end
            end;

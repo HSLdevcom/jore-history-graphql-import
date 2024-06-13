@@ -19,7 +19,7 @@ import { createDbDump } from "./util/createDbDump";
 import { uploadDbDump } from "./util/uploadDbDump";
 import { ENVIRONMENT, QUEUE_SIZE } from "./constants";
 import { createQueue } from "./util/createQueue";
-import { cleanupRowsFromFile } from "./cleanRemovedRows";
+import { cleanupRowsFromFile, removeAllDataFromTable } from "./cleanRemovedRows";
 
 const getTableNameFromFileName = (filename) =>
   Object.entries(schema).find(
@@ -120,8 +120,11 @@ export async function importFile(filePath) {
     // Run the import part of the operation
     if (importEnabled) {
       console.log("Importing the data...");
-
       for (const file of chosenFiles) {
+        console.log(`Importing file ${file.path}`)
+        if (file.path.includes("kalusto.dat")) {
+          await removeAllDataFromTable("equipment");
+        }
         await doFileImport(file);
       }
     }

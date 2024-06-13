@@ -62,6 +62,23 @@ const createRemoveQuery = (tableName, primaryKeys, countRemoved) => async (dataB
   return queryResult;
 };
 
+export async function removeAllDataFromTable(tableName) {
+  let tableId = `jore.${tableName}`;
+
+  try {
+    await knex.transaction(async (trx) => {
+      console.log(`Removing all rows from ${tableName}.`);
+
+      await trx.raw(`DELETE FROM ??;`, [tableId]);
+    });
+
+    console.log(`All rows removed from ${tableName}.`);
+  } catch (err) {
+    console.error(`Error removing rows from ${tableName}:`, err);
+  }
+};
+
+
 function createRemoveStreamForTable(tableName, queueAdd, countRemoved) {
   const primaryKeys = getIndexForTable(tableName);
 
