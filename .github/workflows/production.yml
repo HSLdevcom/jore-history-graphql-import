@@ -1,0 +1,23 @@
+name: Deploy and test production
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  deploy-production:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout server
+        uses: actions/checkout@v2
+        with:
+          repository: HSLdevcom/jore-history-graphql-import
+          ref: ${{ github.ref }}
+      - name: Build Server and publish Docker image
+        uses: elgohr/Publish-Docker-Github-Action@master
+        with:
+          name: hsldevcom/jore-history-graphql-import
+          username: ${{ secrets.TRANSITLOG_DOCKERHUB_USER }}
+          password: ${{ secrets.TRANSITLOG_DOCKERHUB_TOKEN }}
+          tags: ${{ github.ref }}
