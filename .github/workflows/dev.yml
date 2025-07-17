@@ -10,11 +10,8 @@ jobs:
     steps:
       - name: Checkout dev
         uses: actions/checkout@v4
-        with:
-          repository: HSLdevcom/jore-history-graphql-import
-          ref: dev
       - name: Build dev and publish Docker image
-        uses: elgohr/Publish-Docker-Github-Action@master
+        uses: elgohr/Publish-Docker-Github-Action@v4
         with:
           name: hsldevcom/jore-history-graphql-import
           username: ${{ secrets.TRANSITLOG_DOCKERHUB_USER }}
