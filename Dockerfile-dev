@@ -1,26 +1,26 @@
 # Same as production but uses the .env.dev file instead.
-
 FROM node:18-alpine
 
-RUN apt-get update && \
-  apt-get -y install git build-essential software-properties-common && \
-  # Needs new versions from the Buster repo, otherwise the matcher won't work
-  apt-add-repository 'deb http://ftp.us.debian.org/debian buster main contrib non-free' && \
-  apt-get update && \
-  apt-get -y install postgresql-client-11 && rm -rf /var/lib/apt/lists/*
+# Install required dependencies
+RUN apk add --no-cache \
+    bash \
+    git \
+    build-base \
+    postgresql-client \
+    ca-certificates \
+    openssl \
+    curl
 
 ENV WORK /opt/jore
-
 WORKDIR ${WORK}
-# Install app dependencies
-COPY package.json ${WORK}
-COPY yarn.lock ${WORK}
 
-# Copy the env file for production
+# Install app dependencies
+COPY package.json yarn.lock ./
 COPY .env.dev ${WORK}/.env
 
-RUN yarn install
+RUN yarn install --frozen-lockfile
 
 # Copy app source
-COPY . ${WORK}
-CMD yarn run start:production
+COPY . .
+
+CMD ["yarn", "run", "start:production"]
