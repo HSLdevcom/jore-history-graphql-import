@@ -1,10 +1,6 @@
-import { get } from "lodash";
+import { get } from 'lodash'
 
-export async function getPrimaryConstraint(
-  knex,
-  tableName,
-  schemaName = "public",
-) {
+export async function getPrimaryConstraint(knex, tableName, schemaName = 'public') {
   const { rows } = await knex.raw(
     `SELECT con.*
      FROM pg_catalog.pg_constraint con
@@ -14,13 +10,13 @@ export async function getPrimaryConstraint(
                        ON nsp.oid = connamespace
      WHERE nsp.nspname = ?
        AND rel.relname = ?;`,
-    [schemaName, tableName],
-  );
+    [schemaName, tableName]
+  )
 
   // Only interested in primary constraints
   return get(
-    rows.filter((row) => row.conname.includes("pkey")),
-    "[0].conname",
-    null,
-  );
+    rows.filter((row) => row.conname.includes('pkey')),
+    '[0].conname',
+    null
+  )
 }

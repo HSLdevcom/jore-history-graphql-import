@@ -1,37 +1,37 @@
-exports.up = async function(knex) {
+exports.up = async function (knex) {
   const hasEmissionClass = await knex.schema
-    .withSchema("jore")
-    .hasColumn("equipment", "emission_class");
+    .withSchema('jore')
+    .hasColumn('equipment', 'emission_class')
 
   const hasEmissionDescription = await knex.schema
-    .withSchema("jore")
-    .hasColumn("equipment", "emission_desc");
+    .withSchema('jore')
+    .hasColumn('equipment', 'emission_desc')
 
-  await knex.schema.withSchema("jore").table("equipment", (table) => {
+  await knex.schema.withSchema('jore').table('equipment', (table) => {
     if (hasEmissionClass === false) {
-      table.string("emission_class", 2);
+      table.string('emission_class', 2)
     }
     if (hasEmissionDescription === false) {
-      table.string("emission_desc", 30);
+      table.string('emission_desc', 30)
     }
-  });
-};
+  })
+}
 
-exports.down = async function(knex) {
+exports.down = async function (knex) {
   const hasEmissionClass = await knex.schema
-    .withSchema("jore")
-    .hasColumn("equipment", "emission_class");
+    .withSchema('jore')
+    .hasColumn('equipment', 'emission_class')
 
   const hasEmissionDescription = await knex.schema
-    .withSchema("jore")
-    .hasColumn("equipment", "emission_desc");
+    .withSchema('jore')
+    .hasColumn('equipment', 'emission_desc')
 
-  await knex.schema.withSchema("jore").table("equipment", (table) => {
+  await knex.schema.withSchema('jore').table('equipment', (table) => {
     if (hasEmissionClass) {
-      table.dropColumn("emission_class");
+      table.dropColumn('emission_class')
     }
     if (hasEmissionDescription) {
-      table.dropColumn("emission_desc");
+      table.dropColumn('emission_desc')
     }
-  });
-};
+  })
+}
