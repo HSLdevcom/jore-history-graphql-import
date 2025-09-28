@@ -1,6 +1,6 @@
 # Same as production but uses the .env.dev file instead.
 
-FROM node:12
+FROM node:18
 
 RUN apt-get update && \
   apt-get -y install git build-essential software-properties-common && \

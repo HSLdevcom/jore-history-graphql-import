@@ -15,7 +15,7 @@ jobs:
           repository: HSLdevcom/jore-history-graphql-import
           ref: ${{ github.ref }}
       - name: Build Server and publish Docker image
-        uses: elgohr/Publish-Docker-Github-Action@master
+        uses: elgohr/Publish-Docker-Github-Action@v4
         with:
           name: hsldevcom/jore-history-graphql-import
           username: ${{ secrets.TRANSITLOG_DOCKERHUB_USER }}
