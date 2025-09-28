@@ -1,162 +1,160 @@
-import schema from "./schema";
-import iconv from "iconv-lite";
-import split from "split2";
-import { processLine } from "./preprocess";
-import { createQueue } from "./util/createQueue";
-import { map, collect } from "etl";
-import { getIndexForTable, createLineParser, NS_PER_SEC } from "./database";
-import { getKnex } from "./knex";
-import { GEOMETRY_TABLE_NAME, QUEUE_SIZE } from "./constants";
-import { uniqBy } from "lodash";
-import { createPrimaryKey } from "./util/createPrimaryKey";
+import schema from './schema'
+import iconv from 'iconv-lite'
+import split from 'split2'
+import { processLine } from './preprocess'
+import { createQueue } from './util/createQueue'
+import { map, collect } from 'etl'
+import { getIndexForTable, createLineParser, NS_PER_SEC } from './database'
+import { getKnex } from './knex'
+import { GEOMETRY_TABLE_NAME, QUEUE_SIZE } from './constants'
+import { uniqBy } from 'lodash'
+import { createPrimaryKey } from './util/createPrimaryKey'
 
-const { knex } = getKnex();
+const { knex } = getKnex()
 
 const getTableNameFromFileName = (filename) =>
   Object.entries(schema).find(
     ([, { filename: schemaFilename }]) =>
-      filename === `${schemaFilename.replace(".dat", "")}_removed.dat`,
-  )[0];
+      filename === `${schemaFilename.replace('.dat', '')}_removed.dat`
+  )[0]
 
 // Create the remove query with a transaction,
 const createRemoveQuery = (tableName, primaryKeys, countRemoved) => async (dataBatch) => {
-  let queryResult = [];
-  let tableId = `jore.${tableName}`;
+  let queryResult = []
+  let tableId = `jore.${tableName}`
 
   try {
     queryResult = await knex.transaction(async (trx) => {
-      console.log(`Removing ${dataBatch.length} rows from ${tableName}.`);
-      let removeRows = dataBatch;
+      console.log(`Removing ${dataBatch.length} rows from ${tableName}.`)
+      let removeRows = dataBatch
 
       if (tableName === GEOMETRY_TABLE_NAME) {
         // The raw geometry data is one row per point, which is combined into a line when importing.
         // Thus there are many rows in the data which match the primary key. This causes deadlocks
         // when deleting, so the rows need to be reduced to unique rows only.
-        removeRows = uniqBy(dataBatch, (item) => createPrimaryKey(item, primaryKeys));
+        removeRows = uniqBy(dataBatch, (item) => createPrimaryKey(item, primaryKeys))
       }
 
-      let removeQueries = [];
+      let removeQueries = []
 
       for (let data of removeRows) {
-        let whereFields = primaryKeys.map((pk) => `t.${pk}::text = '${data[pk]}'`);
+        let whereFields = primaryKeys.map((pk) => `t.${pk}::text = '${data[pk]}'`)
 
-        let removeQuery = trx.raw(
-          `DELETE FROM ?? t WHERE ${whereFields.join(" AND ")};`,
-          [tableId],
-        );
+        let removeQuery = trx.raw(`DELETE FROM ?? t WHERE ${whereFields.join(' AND ')};`, [
+          tableId,
+        ])
 
-        removeQueries.push(removeQuery);
+        removeQueries.push(removeQuery)
       }
 
-      return Promise.all(removeQueries);
-    });
+      return Promise.all(removeQueries)
+    })
   } catch (err) {
-    console.log("Remove transaction error:", err);
+    console.log('Remove transaction error:', err)
   }
 
-  let removedCount = queryResult.reduce((total, res) => total + res.rowCount, 0);
-  console.log("removed count:", removedCount);
+  let removedCount = queryResult.reduce((total, res) => total + res.rowCount, 0)
+  console.log('removed count:', removedCount)
 
-  countRemoved(removedCount);
+  countRemoved(removedCount)
 
-  return queryResult;
-};
+  return queryResult
+}
 
 export async function removeAllDataFromTable(tableName) {
-  let tableId = `jore.${tableName}`;
+  let tableId = `jore.${tableName}`
 
   try {
     await knex.transaction(async (trx) => {
-      console.log(`Removing all rows from ${tableName}.`);
+      console.log(`Removing all rows from ${tableName}.`)
 
-      await trx.raw(`DELETE FROM ??;`, [tableId]);
-    });
+      await trx.raw(`DELETE FROM ??;`, [tableId])
+    })
 
-    console.log(`All rows removed from ${tableName}.`);
+    console.log(`All rows removed from ${tableName}.`)
   } catch (err) {
-    console.error(`Error removing rows from ${tableName}:`, err);
+    console.error(`Error removing rows from ${tableName}:`, err)
   }
-};
-
+}
 
 function createRemoveStreamForTable(tableName, queueAdd, countRemoved) {
-  const primaryKeys = getIndexForTable(tableName);
+  const primaryKeys = getIndexForTable(tableName)
 
   if (primaryKeys.length === 0) {
-    console.log(`No primary keys found for table ${tableName}, skipping remove.`);
-    return false;
+    console.log(`No primary keys found for table ${tableName}, skipping remove.`)
+    return false
   }
 
-  const remover = createRemoveQuery(tableName, primaryKeys, countRemoved);
-  const lineParser = createLineParser(tableName);
+  const remover = createRemoveQuery(tableName, primaryKeys, countRemoved)
+  const lineParser = createLineParser(tableName)
 
   // Collects all incoming data into one chunk.
   // Needed for the geometry table as the rows must be unique.
   function collectAll(data) {
-    this.buffer.push(data);
+    this.buffer.push(data)
   }
 
   // How many rows to collect in each chunk. Geometry table collects everything into a single chunk.
-  let collectArg = tableName === GEOMETRY_TABLE_NAME ? collectAll : 100;
+  let collectArg = tableName === GEOMETRY_TABLE_NAME ? collectAll : 100
 
   lineParser.pipe(collect(collectArg)).pipe(
     map((itemBatch) => {
-      queueAdd(() => remover(itemBatch));
-    }),
-  );
+      queueAdd(() => remover(itemBatch))
+    })
+  )
 
-  return lineParser;
+  return lineParser
 }
 
 export async function cleanupRowsFromFile(file) {
-  const { queueAdd, onQueueEmpty } = createQueue(20);
-  let removedRows = 0;
+  const { queueAdd, onQueueEmpty } = createQueue(20)
+  let removedRows = 0
 
   function countRemoved(removed = 0) {
-    removedRows += removed;
+    removedRows += removed
   }
 
-  let time = [0, 0];
-  let tableName = "";
+  let time = [0, 0]
+  let tableName = ''
 
   await new Promise((resolve, reject) => {
-    time = process.hrtime();
-    tableName = getTableNameFromFileName(file.path);
+    time = process.hrtime()
+    tableName = getTableNameFromFileName(file.path)
 
-    let removeStream = createRemoveStreamForTable(tableName, queueAdd, countRemoved);
+    let removeStream = createRemoveStreamForTable(tableName, queueAdd, countRemoved)
 
     if (!removeStream) {
-      return resolve(tableName);
+      return resolve(tableName)
     }
 
     const readStream = file
       .stream()
-      .pipe(iconv.decodeStream("ISO-8859-1"))
-      .pipe(iconv.encodeStream("utf8"))
+      .pipe(iconv.decodeStream('ISO-8859-1'))
+      .pipe(iconv.encodeStream('utf8'))
       .pipe(split())
-      .pipe(processLine(tableName));
+      .pipe(processLine(tableName))
 
-    readStream.on("error", (err) => {
-      removeStream.destroy(err);
-      reject(err);
-    });
+    readStream.on('error', (err) => {
+      removeStream.destroy(err)
+      reject(err)
+    })
 
-    readStream.pipe(removeStream);
+    readStream.pipe(removeStream)
 
     removeStream
-      .on("finish", () => {
-        console.log(`Reading remove file for table ${tableName} finished.`);
-        resolve(tableName);
+      .on('finish', () => {
+        console.log(`Reading remove file for table ${tableName} finished.`)
+        resolve(tableName)
       })
-      .on("error", (err) => {
-        readStream.destroy(err);
-        reject(err);
-      });
-  });
+      .on('error', (err) => {
+        readStream.destroy(err)
+        reject(err)
+      })
+  })
 
-  await onQueueEmpty();
+  await onQueueEmpty()
 
-  const [execS, execNs] = process.hrtime(time);
-  const ms = (execS * NS_PER_SEC + execNs) / 1000000;
-  console.log(`${removedRows} records of ${tableName} deleted in ${ms} ms`);
+  const [execS, execNs] = process.hrtime(time)
+  const ms = (execS * NS_PER_SEC + execNs) / 1000000
+  console.log(`${removedRows} records of ${tableName} deleted in ${ms} ms`)
 }

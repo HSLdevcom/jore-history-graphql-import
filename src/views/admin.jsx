@@ -1,9 +1,9 @@
-import React from "react";
-import StatusIndicator from "./components/StatusIndicator";
-import DailyImport from "./components/DailyImport";
-import SelectTables from "./components/SelectTables";
-import UploadExport from "./components/UploadExport";
-import { PATH_PREFIX } from "../constants";
+import React from 'react'
+import StatusIndicator from './components/StatusIndicator'
+import DailyImport from './components/DailyImport'
+import SelectTables from './components/SelectTables'
+import UploadExport from './components/UploadExport'
+import { PATH_PREFIX } from '../constants'
 
 const AdminView = ({
   manualDumpInProgress,
@@ -17,10 +17,7 @@ const AdminView = ({
     <>
       <small>Version 1.4</small>
       <h1>JORE history import admin</h1>
-      <StatusIndicator
-        isImporting={isImporting}
-        latestImportedFile={latestImportedFile}
-      />
+      <StatusIndicator isImporting={isImporting} latestImportedFile={latestImportedFile} />
       <hr />
       <DailyImport disabled={isImporting || manualDumpInProgress} />
       <UploadExport disabled={isImporting || manualDumpInProgress} />
@@ -44,7 +41,7 @@ const AdminView = ({
         />
       </form>
     </>
-  );
-};
+  )
+}
 
-export default AdminView;
+export default AdminView

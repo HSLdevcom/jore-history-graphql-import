@@ -6,7 +6,8 @@
     "start": "node --max-old-space-size=32768 --unhandled-rejections=strict --inspect -r esm -r dotenv/config src/index.js",
     "start:production": "forever start -c \"node --max-old-space-size=32768 --unhandled-rejections=strict -r esm -r dotenv/config\" src/index.js && forever -f logs 0",
     "lint": "eslint src --fix",
-    "prettier": "prettier */**.{js,json} --write",
+    "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
     "ftpsource": "ftp-srv ftp://127.0.0.1:2121 --root ./source",
     "knex": "knex",
     "knex:local": "env-cmd knex"
@@ -41,6 +42,7 @@
     "fs-extra": "^7.0.0",
     "ftp-srv": "^4.3.4",
     "got": "^10.0.4",
+    "husky": "^9.1.7",
     "iconv-lite": "^0.4.24",
     "knex": "^0.20.8",
     "knex-postgis": "^0.10.0",
@@ -70,7 +72,7 @@
     "prettier": "^1.14.2"
   },
   "resolutions": {
-    "minimist" : "^1.2.6",
+    "minimist": "^1.2.6",
     "@babel/traverse": "^7.23.2",
     "eslint-utils": "^1.4.1",
     "underscore": "^1.12.1",

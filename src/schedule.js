@@ -1,11 +1,11 @@
-import { CronJob } from "cron";
-import { DAILY_TASK_SCHEDULE } from "./constants";
+import { CronJob } from 'cron'
+import { DAILY_TASK_SCHEDULE } from './constants'
 
-let scheduledImport = null;
+let scheduledImport = null
 
 export function scheduleImport(task) {
   if (scheduledImport) {
-    scheduledImport.stop();
+    scheduledImport.stop()
   }
 
   scheduledImport = new CronJob(
@@ -16,14 +16,14 @@ export function scheduleImport(task) {
     null, // time zone
     null, // Context
     false, // Run on init (we want to wait until the cron fires)
-    3, // UTC offset, safer than requiring knowledge about timezones
-  );
+    3 // UTC offset, safer than requiring knowledge about timezones
+  )
 }
 
 // Start the clock for the task. If "run on init" for the task is true, the task
 // will run, otherwise only the clock is started.
 export function startScheduledImport() {
   if (scheduledImport) {
-    scheduledImport.start();
+    scheduledImport.start()
   }
 }
