@@ -18,4 +18,4 @@ jobs:
           name: hsldevcom/jore-history-graphql-import
           username: ${{ secrets.TRANSITLOG_DOCKERHUB_USER }}
           password: ${{ secrets.TRANSITLOG_DOCKERHUB_TOKEN }}
-          tags: ${{ github.ref }}
+          tags: dev
