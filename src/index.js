@@ -29,7 +29,6 @@ export const endImport = () => {
   isImporting = false
   return true
 }
-
 ;(async () => {
   console.log('Initializing DB...')
   await knex.migrate.latest()
