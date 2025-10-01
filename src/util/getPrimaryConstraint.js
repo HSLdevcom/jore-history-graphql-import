@@ -14,5 +14,9 @@ export async function getPrimaryConstraint(knex, tableName, schemaName = 'public
   )
 
   // Only interested in primary constraints
-  return get(rows.filter((row) => row.conname.includes('pkey')), '[0].conname', null)
+  return get(
+    rows.filter((row) => row.conname.includes('pkey')),
+    '[0].conname',
+    null
+  )
 }
