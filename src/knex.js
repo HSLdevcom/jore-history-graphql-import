@@ -9,11 +9,13 @@ export function getKnex() {
   if (knex && st) {
     return { knex, st }
   }
-
   knex = Knex({
     dialect: 'postgres',
     client: 'pg',
     connection: JORE_PG_CONNECTION,
+    migrations: {
+      disableMigrationsListValidation: true,
+    },
     pool: {
       log: (message, logLevel) =>
         DEBUG ? console.log(`Pool ${logLevel}: ${message}`) : undefined,

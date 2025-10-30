@@ -38,8 +38,10 @@ export async function onMonitorEvent(
     text: fullMessage,
   }
 
-  return got(SLACK_WEBHOOK_URL, {
-    method: 'post',
-    json: body,
-  })
+  // For testing purposes to not spam slack for now
+  console.log(fullMessage)
+  //return got(SLACK_WEBHOOK_URL, {
+  //  method: 'post',
+  //  json: body,
+  //})
 }
