@@ -4,7 +4,7 @@
   "description": "Data importer for jore-history-graphql",
   "scripts": {
     "start": "node --max-old-space-size=32768 --unhandled-rejections=strict --inspect -r esm -r dotenv/config src/index.js",
-    "start:production": "forever start -c \"node --max-old-space-size=32768 --unhandled-rejections=strict -r esm -r dotenv/config\" src/index.js && forever -f logs 0",
+    "start:production": "node --max-old-space-size=32768 --unhandled-rejections=strict -r esm -r dotenv/config src/index.js",
     "lint": "eslint src --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
