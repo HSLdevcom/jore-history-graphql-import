@@ -1,70 +1,70 @@
-import schema from "./schema";
-import { pick, compact, difference } from "lodash";
+import schema from './schema'
+import { pick, compact, difference } from 'lodash'
 
-const tableNames = Object.keys(schema);
-const [...argSelections] = process.argv.slice(2);
+const tableNames = Object.keys(schema)
+const [...argSelections] = process.argv.slice(2)
 
 const omitNames = argSelections
-  .filter((tn) => tn.startsWith("exclude:"))
-  .map((tn) => tn.replace("exclude:", ""));
+  .filter((tn) => tn.startsWith('exclude:'))
+  .map((tn) => tn.replace('exclude:', ''))
 
 const pickNames = difference(
-  argSelections.filter((tn) => !tn.startsWith("exclude:")),
-  omitNames,
-);
+  argSelections.filter((tn) => !tn.startsWith('exclude:')),
+  omitNames
+)
 
 const selectedWithArgs =
   pickNames.length === 0
     ? tableNames.filter((tn) => !omitNames.includes(tn))
-    : tableNames.filter((tn) => pickNames.includes(tn));
+    : tableNames.filter((tn) => pickNames.includes(tn))
 
 const selectedOptions = tableNames.reduce((tableOptions, tableName) => {
-  tableOptions[tableName] = selectedWithArgs.includes(tableName);
-  return tableOptions;
-}, {});
+  tableOptions[tableName] = selectedWithArgs.includes(tableName)
+  return tableOptions
+}, {})
 
-let removeEnabled = true;
-let importEnabled = true;
+let removeEnabled = true
+let importEnabled = true
 
 export const getRemoveEnabledStatus = () => {
-  return removeEnabled;
-};
+  return removeEnabled
+}
 
 export const getImportEnabledStatus = () => {
-  return importEnabled;
-};
+  return importEnabled
+}
 
 export const toggleRemoveEnabled = (setTo = !removeEnabled) => {
-  removeEnabled = setTo;
-};
+  removeEnabled = setTo
+}
 
 export const toggleImportEnabled = (setTo = !importEnabled) => {
-  importEnabled = setTo;
-};
+  importEnabled = setTo
+}
 
 export const getSelectedTables = () => {
   const selectedTables = Object.entries(selectedOptions)
     .filter(([, isSelected]) => isSelected)
-    .map(([tableName]) => tableName);
+    .map(([tableName]) => tableName)
 
   const selectedSchema =
     selectedTables.length !== 0
       ? Object.values(pick(schema, selectedTables))
-      : Object.values(schema);
+      : Object.values(schema)
 
-  const selectedFiles = compact(selectedSchema.map(({ filename }) => filename));
+  const selectedFiles = compact(selectedSchema.map(({ filename }) => filename))
 
-  return { selectedTables, selectedFiles, selectedSchema };
-};
+  return { selectedTables, selectedFiles, selectedSchema }
+}
 
 export const setTableOption = (tableName, isEnabled = true) => {
   if (tableName in selectedOptions) {
-    selectedOptions[tableName] = !!isEnabled;
+    selectedOptions[tableName] = !!isEnabled
   }
 
-  return selectedOptions;
-};
+  return selectedOptions
+}
 
 export const getSelectedTableStatus = () => {
-  return selectedOptions;
-};
+  return selectedOptions
+}

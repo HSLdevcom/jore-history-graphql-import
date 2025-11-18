@@ -1,84 +1,84 @@
-import through from "through2";
-import throughConcurrent from "through2-concurrent";
-import { GEOMETRY_TABLE_NAME } from "./constants";
+import through from 'through2'
+import throughConcurrent from 'through2-concurrent'
+import { GEOMETRY_TABLE_NAME } from './constants'
 
-const isWhitespaceOnly = /^\s*$/;
+const isWhitespaceOnly = /^\s*$/
 
 function createLinebreaksReplacer() {
-  let lines = [];
+  let lines = []
 
   return (line, lineLength) => {
-    lines.push(line);
+    lines.push(line)
 
-    const currentLength = lines.join("\n").length;
-    let output = "";
+    const currentLength = lines.join('\n').length
+    let output = ''
 
     if (currentLength > lineLength) {
-      output = `${lines.join("\n")}\n`;
-      console.log(`Did not replace linebreak(s):\n${output}`);
-      lines = [];
+      output = `${lines.join('\n')}\n`
+      console.log(`Did not replace linebreak(s):\n${output}`)
+      lines = []
     }
     if (currentLength === lineLength) {
-      output = `${lines.join("  ")}\n`;
-      if (lines.length > 1) console.log(`Replaced linebreak(s):\n${output}`);
-      lines = [];
+      output = `${lines.join('  ')}\n`
+      if (lines.length > 1) console.log(`Replaced linebreak(s):\n${output}`)
+      lines = []
     }
 
-    return output;
-  };
+    return output
+  }
 }
 
 function replaceGeometryIndexes() {
-  let index = 1;
-  let previous;
+  let index = 1
+  let previous
 
   return (line) => {
-    const lineId = line.substr(0, 24);
-    index = lineId === previous ? index + 1 : 1;
-    const indexPadded = `${"0".repeat(4 - index.toString().length)}${index}`;
-    const lineIndexed = `${line.substr(0, 32)}${indexPadded}${line.slice(36)}`;
+    const lineId = line.substr(0, 24)
+    index = lineId === previous ? index + 1 : 1
+    const indexPadded = `${'0'.repeat(4 - index.toString().length)}${index}`
+    const lineIndexed = `${line.substr(0, 32)}${indexPadded}${line.slice(36)}`
 
     if (index === 1 && line !== lineIndexed) {
-      console.log("Replacing geometry indices...");
+      console.log('Replacing geometry indices...')
     }
 
-    previous = lineId;
-    return lineIndexed;
-  };
+    previous = lineId
+    return lineIndexed
+  }
 }
 
 export function processLine(tableName) {
-  const geometryReplacer = replaceGeometryIndexes();
-  const lineBreaksReplacer = createLinebreaksReplacer();
+  const geometryReplacer = replaceGeometryIndexes()
+  const lineBreaksReplacer = createLinebreaksReplacer()
 
-  let maxLength = 0;
+  let maxLength = 0
 
   const throughFunc =
     tableName === GEOMETRY_TABLE_NAME
       ? through.obj
-      : throughConcurrent.obj.bind(throughConcurrent.obj, { maxConcurrency: 100 });
+      : throughConcurrent.obj.bind(throughConcurrent.obj, { maxConcurrency: 100 })
 
   return throughFunc(function createLine(chunk, enc, cb) {
-    const str = enc === "buffer" ? chunk.toString("utf8") : chunk;
+    const str = enc === 'buffer' ? chunk.toString('utf8') : chunk
 
     if (str && !isWhitespaceOnly.test(str)) {
       if (str.length > maxLength) {
-        maxLength = str.length;
+        maxLength = str.length
       }
 
-      const linebreaksReplacedStr = lineBreaksReplacer(str, maxLength);
+      const linebreaksReplacedStr = lineBreaksReplacer(str, maxLength)
 
       if (linebreaksReplacedStr) {
-        let resultLine = linebreaksReplacedStr;
+        let resultLine = linebreaksReplacedStr
 
         if (tableName === GEOMETRY_TABLE_NAME) {
-          resultLine = geometryReplacer(linebreaksReplacedStr);
+          resultLine = geometryReplacer(linebreaksReplacedStr)
         }
 
-        this.push(resultLine);
+        this.push(resultLine)
       }
     }
 
-    cb();
-  });
+    cb()
+  })
 }

@@ -1,5 +1,5 @@
-import React from "react";
-import { PATH_PREFIX } from "../../constants";
+import React from 'react'
+import { PATH_PREFIX } from '../../constants'
 
 const UploadExport = ({ disabled }) => {
   return (
@@ -18,7 +18,7 @@ const UploadExport = ({ disabled }) => {
         </fieldset>
       </form>
     </>
-  );
-};
+  )
+}
 
-export default UploadExport;
+export default UploadExport
