@@ -13,6 +13,9 @@ export function getKnex() {
     dialect: 'postgres',
     client: 'pg',
     connection: JORE_PG_CONNECTION,
+    migrations: {
+      disableMigrationsListValidation: true,
+    },
     pool: {
       log: (message, logLevel) =>
         DEBUG ? console.log(`Pool ${logLevel}: ${message}`) : undefined,
