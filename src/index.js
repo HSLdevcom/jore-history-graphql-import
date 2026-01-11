@@ -30,8 +30,8 @@ export const endImport = () => {
   return true
 }
 ;(async () => {
-  console.log('Initializing DB...')
-  await knex.migrate.latest()
+  // console.log('Initializing DB...')
+  // await knex.migrate.latest()
 
   server(() => isImporting)
   await reportInfo('Server started.')
