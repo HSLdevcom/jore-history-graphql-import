@@ -6,7 +6,6 @@ import { reportError, reportInfo } from './monitor.js'
 import { runFtpImport } from './importRunners.js'
 import { recoverFromCrash } from './util/recoverFromCrash.js'
 
-
 const { knex } = getKnex()
 // logQueryTime(knex);
 

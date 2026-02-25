@@ -5,8 +5,8 @@ import basicAuth from 'express-basic-auth'
 import { ADMIN_PASSWORD, PATH_PREFIX, SERVER_PORT } from './constants.js'
 import { createEngine } from 'express-react-views'
 import path from 'path'
-import { fileURLToPath } from "node:url";
-import { dirname } from "node:path";
+import { fileURLToPath } from 'node:url'
+import { dirname } from 'node:path'
 import { getLatestImportedFile } from './importStatus.js'
 import {
   getSelectedTableStatus,
@@ -22,8 +22,8 @@ import { reportError, reportInfo } from './monitor.js'
 import { handleUploadedFile } from './util/handleUploadedFile.js'
 import { runFileImport, runFtpImport } from './importRunners.js'
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
 
 export const server = (isImporting) => {
   const app = express()

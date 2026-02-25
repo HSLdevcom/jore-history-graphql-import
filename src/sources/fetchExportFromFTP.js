@@ -3,7 +3,14 @@ import { orderBy, get } from 'lodash-es'
 import path from 'path'
 import fs from 'fs-extra'
 import { getLatestImportedFile, getErrorFiles } from '../importStatus.js'
-import { FTP_USERNAME, FTP_PASSWORD, FTP_HOST, FTP_PORT, FTP_PATH, DEBUG } from '../constants.js'
+import {
+  FTP_USERNAME,
+  FTP_PASSWORD,
+  FTP_HOST,
+  FTP_PORT,
+  FTP_PATH,
+  DEBUG,
+} from '../constants.js'
 
 const cwd = process.cwd()
 

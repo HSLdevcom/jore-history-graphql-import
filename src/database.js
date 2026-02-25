@@ -6,13 +6,13 @@ import { getKnex } from './knex.js'
 import through from 'through2'
 import { parseLine } from './util/parseLine.js'
 import { createPrimaryKey } from './util/createPrimaryKey.js'
-import etl from "etl";
+import etl from 'etl'
 import { GEOMETRY_TABLE_NAME, BATCH_SIZE } from './constants.js'
 import throughConcurrent from 'through2-concurrent'
 import streamFilter from 'stream-filter'
 import { createFutureRowsFilter } from './util/futureFilter.js'
 
-const { map, collect } = etl;
+const { map, collect } = etl
 const { knex } = getKnex()
 const SCHEMA = 'jore'
 export const NS_PER_SEC = 1e9 // For tracking performance

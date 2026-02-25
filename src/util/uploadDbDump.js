@@ -1,5 +1,9 @@
-import { AZURE_STORAGE_ACCOUNT, AZURE_STORAGE_KEY, AZURE_UPLOAD_CONTAINER } from '../constants.js'
-import { StorageSharedKeyCredential, BlobServiceClient } from "@azure/storage-blob";
+import {
+  AZURE_STORAGE_ACCOUNT,
+  AZURE_STORAGE_KEY,
+  AZURE_UPLOAD_CONTAINER,
+} from '../constants.js'
+import { StorageSharedKeyCredential, BlobServiceClient } from '@azure/storage-blob'
 import { AbortController } from '@azure/abort-controller'
 import path from 'path'
 import fs from 'fs-extra'
