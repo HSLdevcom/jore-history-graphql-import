@@ -1,5 +1,5 @@
-import { getKnex } from '../knex'
-import { BATCH_SIZE } from '../constants'
+import { getKnex } from '../knex.js'
+import { BATCH_SIZE } from '../constants.js'
 
 const { knex } = getKnex()
 const schema = 'jore'

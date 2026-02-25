@@ -1,4 +1,4 @@
-import { get } from 'lodash'
+import { get } from 'lodash-es'
 
 export async function getPrimaryConstraint(knex, tableName, schemaName = 'public') {
   const { rows } = await knex.raw(

@@ -1,4 +1,4 @@
-const { find, compact } = require('lodash')
+const { find, compact } = require('lodash-es')
 const pMap = require('p-map')
 
 async function createTables(schema, config, knex) {
@@ -91,7 +91,7 @@ async function createForeignKeys(schema, config, knex) {
   })
 }
 
-module.exports = {
+export default {
   createTables,
   createForeignKeys,
 }

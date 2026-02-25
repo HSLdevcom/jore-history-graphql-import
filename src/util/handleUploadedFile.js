@@ -1,6 +1,6 @@
 import path from 'path'
 import fs from 'fs-extra'
-import { reportError } from '../monitor'
+import { reportError } from '../monitor.js'
 
 const cwd = process.cwd()
 const uploadPath = path.join(cwd, 'uploads')

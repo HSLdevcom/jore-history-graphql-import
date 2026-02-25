@@ -1,6 +1,6 @@
-import { SLACK_WEBHOOK_URL, ENVIRONMENT, SLACK_MONITOR_MENTION } from './constants'
+import { SLACK_WEBHOOK_URL, ENVIRONMENT, SLACK_MONITOR_MENTION } from './constants.js'
 import got from 'got'
-import _ from 'lodash'
+import _ from 'lodash-es'
 
 export const messageTypes = {
   ERROR: 'error',

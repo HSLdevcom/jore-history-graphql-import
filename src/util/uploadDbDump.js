@@ -1,5 +1,5 @@
-import { AZURE_STORAGE_ACCOUNT, AZURE_STORAGE_KEY, AZURE_UPLOAD_CONTAINER } from '../constants'
-import { SharedKeyCredential, BlobServiceClient } from '@azure/storage-blob'
+import { AZURE_STORAGE_ACCOUNT, AZURE_STORAGE_KEY, AZURE_UPLOAD_CONTAINER } from '../constants.js'
+import { StorageSharedKeyCredential, BlobServiceClient } from "@azure/storage-blob";
 import { AbortController } from '@azure/abort-controller'
 import path from 'path'
 import fs from 'fs-extra'
@@ -25,7 +25,7 @@ export const uploadDbDump = async (filePath) => {
 
   console.log(`Uploading DB dump ${filePath} to Azure.`)
 
-  const sharedKeyCredential = new SharedKeyCredential(account, accountKey)
+  const sharedKeyCredential = new StorageSharedKeyCredential(account, accountKey)
   const blobServiceClient = new BlobServiceClient(
     `https://${account}.blob.core.windows.net`,
     sharedKeyCredential

@@ -1,17 +1,18 @@
-import { upsert } from './util/upsert'
-import schema from './schema'
-import { pick, orderBy, get, uniq, uniqBy } from 'lodash'
-import { getPrimaryConstraint } from './util/getPrimaryConstraint'
-import { getKnex } from './knex'
+import { upsert } from './util/upsert.js'
+import schema from './schema.js'
+import { pick, orderBy, get, uniq, uniqBy } from 'lodash-es'
+import { getPrimaryConstraint } from './util/getPrimaryConstraint.js'
+import { getKnex } from './knex.js'
 import through from 'through2'
-import { parseLine } from './util/parseLine'
-import { createPrimaryKey } from './util/createPrimaryKey'
-import { map, collect } from 'etl'
-import { GEOMETRY_TABLE_NAME, BATCH_SIZE } from './constants'
+import { parseLine } from './util/parseLine.js'
+import { createPrimaryKey } from './util/createPrimaryKey.js'
+import etl from "etl";
+import { GEOMETRY_TABLE_NAME, BATCH_SIZE } from './constants.js'
 import throughConcurrent from 'through2-concurrent'
 import streamFilter from 'stream-filter'
-import { createFutureRowsFilter } from './util/futureFilter'
+import { createFutureRowsFilter } from './util/futureFilter.js'
 
+const { map, collect } = etl;
 const { knex } = getKnex()
 const SCHEMA = 'jore'
 export const NS_PER_SEC = 1e9 // For tracking performance
