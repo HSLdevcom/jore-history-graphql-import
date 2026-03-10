@@ -1,6 +1,6 @@
 import Knex from 'knex'
 import KnexPostgis from 'knex-postgis'
-import { JORE_PG_CONNECTION, DEBUG } from './constants'
+import { JORE_PG_CONNECTION, DEBUG } from './constants.js'
 
 let knex = null
 let st = null

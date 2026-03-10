@@ -1,7 +1,7 @@
-import { fetchExportFromFTP } from './sources/fetchExportFromFTP'
-import { reportError } from './monitor'
-import { importFile } from './import'
-import { endImport, beginImport } from './index'
+import { fetchExportFromFTP } from './sources/fetchExportFromFTP.js'
+import { reportError } from './monitor.js'
+import { importFile } from './import.js'
+import { endImport, beginImport } from './index.js'
 
 export const runFtpImport = async () => {
   console.log('Importing from FTP.')

@@ -1,4 +1,4 @@
-module.exports = {
+export default {
   stop: {
     filename: 'pysakki.dat',
     fields: [

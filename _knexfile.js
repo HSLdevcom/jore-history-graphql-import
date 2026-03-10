@@ -1,6 +1,6 @@
-import { JORE_PG_CONNECTION } from "./src/constants";
+const { JORE_PG_CONNECTION } = require("./src/constants");
 
-export default {
+module.exports = {
   client: "pg",
   connection: JORE_PG_CONNECTION,
 };

@@ -1,5 +1,5 @@
 import childProcess from 'child_process'
-import { JORE_PG_CONNECTION } from '../constants'
+import { JORE_PG_CONNECTION } from '../constants.js'
 import path from 'path'
 import fs from 'fs-extra'
 

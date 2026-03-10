@@ -1,6 +1,6 @@
 import path from 'path'
-import { setFileError } from '../importStatus'
-import { reportError } from '../monitor'
+import { setFileError } from '../importStatus.js'
+import { reportError } from '../monitor.js'
 
 export async function catchFileError(filePath, duration = 0) {
   const fileName = path.basename(filePath)

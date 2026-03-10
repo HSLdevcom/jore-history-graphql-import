@@ -2,7 +2,7 @@ const { createTables, createForeignKeys } = require('./createDb')
 const fs = require('fs-extra')
 const path = require('path')
 const tables = require('../schema')
-const { pick } = require('lodash')
+const { pick } = require('lodash-es')
 
 async function initDb(knex) {
   try {
@@ -28,4 +28,4 @@ async function initDb(knex) {
   }
 }
 
-module.exports = initDb
+export default { initDb }

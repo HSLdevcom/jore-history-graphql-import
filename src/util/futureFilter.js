@@ -1,10 +1,10 @@
-import addDays from 'date-fns/add_days'
-import endOfDay from 'date-fns/end_of_day'
-import isBefore from 'date-fns/is_before'
-import parse from 'date-fns/parse'
-import isValid from 'date-fns/is_valid'
-import { intersection } from 'lodash'
-import schema from '../schema'
+import addDays from 'date-fns/add_days/index.js'
+import endOfDay from 'date-fns/end_of_day/index.js'
+import isBefore from 'date-fns/is_before/index.js'
+import parse from 'date-fns/parse/index.js'
+import isValid from 'date-fns/is_valid/index.js'
+import { intersection } from 'lodash-es'
+import schema from '../schema.js'
 
 // Remove rows which have a date field and the date is more than one day in the
 // future.

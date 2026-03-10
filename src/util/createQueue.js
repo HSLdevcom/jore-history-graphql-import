@@ -1,5 +1,5 @@
 import PQueue from 'p-queue'
-import { QUEUE_SIZE } from '../constants'
+import { QUEUE_SIZE } from '../constants.js'
 
 export const asyncWait = (delay = 1000) =>
   new Promise((resolve) => {

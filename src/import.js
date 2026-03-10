@@ -4,22 +4,22 @@ import {
   getSelectedTables,
   getImportEnabledStatus,
   getRemoveEnabledStatus,
-} from './selectedTables'
-import { startImport, importCompleted } from './importStatus'
-import { createImportStreamForTable, vacuumAnalyze } from './database'
-import { processLine } from './preprocess'
+} from './selectedTables.js'
+import { startImport, importCompleted } from './importStatus.js'
+import { createImportStreamForTable, vacuumAnalyze } from './database.js'
+import { processLine } from './preprocess.js'
 import path from 'path'
 import { Open } from 'unzipper'
-import schema from './schema'
+import schema from './schema.js'
 import iconv from 'iconv-lite'
 import split from 'split2'
-import { catchFileError } from './util/catchFileError'
-import { reportError, reportInfo } from './monitor'
-import { createDbDump } from './util/createDbDump'
-import { uploadDbDump } from './util/uploadDbDump'
-import { ENVIRONMENT, QUEUE_SIZE } from './constants'
-import { createQueue } from './util/createQueue'
-import { cleanupRowsFromFile, removeAllDataFromTable } from './cleanRemovedRows'
+import { catchFileError } from './util/catchFileError.js'
+import { reportError, reportInfo } from './monitor.js'
+import { createDbDump } from './util/createDbDump.js'
+import { uploadDbDump } from './util/uploadDbDump.js'
+import { ENVIRONMENT, QUEUE_SIZE } from './constants.js'
+import { createQueue } from './util/createQueue.js'
+import { cleanupRowsFromFile, removeAllDataFromTable } from './cleanRemovedRows.js'
 
 const getTableNameFromFileName = (filename) =>
   Object.entries(schema).find(
