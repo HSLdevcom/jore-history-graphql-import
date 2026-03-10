@@ -1,15 +1,16 @@
-import schema from './schema'
+import schema from './schema.js'
 import iconv from 'iconv-lite'
 import split from 'split2'
-import { processLine } from './preprocess'
-import { createQueue } from './util/createQueue'
-import { map, collect } from 'etl'
-import { getIndexForTable, createLineParser, NS_PER_SEC } from './database'
-import { getKnex } from './knex'
-import { GEOMETRY_TABLE_NAME, QUEUE_SIZE } from './constants'
-import { uniqBy } from 'lodash'
-import { createPrimaryKey } from './util/createPrimaryKey'
+import { processLine } from './preprocess.js'
+import { createQueue } from './util/createQueue.js'
+import etl from 'etl'
+import { getIndexForTable, createLineParser, NS_PER_SEC } from './database.js'
+import { getKnex } from './knex.js'
+import { GEOMETRY_TABLE_NAME, QUEUE_SIZE } from './constants.js'
+import { uniqBy } from 'lodash-es'
+import { createPrimaryKey } from './util/createPrimaryKey.js'
 
+const { map, collect } = etl
 const { knex } = getKnex()
 
 const getTableNameFromFileName = (filename) =>

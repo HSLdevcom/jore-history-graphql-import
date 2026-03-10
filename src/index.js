@@ -1,10 +1,10 @@
 /* eslint-disable consistent-return */
-import { getKnex } from './knex'
-import { scheduleImport, startScheduledImport } from './schedule'
-import { server } from './server'
-import { reportError, reportInfo } from './monitor'
-import { runFtpImport } from './importRunners'
-import { recoverFromCrash } from './util/recoverFromCrash'
+import { getKnex } from './knex.js'
+import { scheduleImport, startScheduledImport } from './schedule.js'
+import { server } from './server.js'
+import { reportError, reportInfo } from './monitor.js'
+import { runFtpImport } from './importRunners.js'
+import { recoverFromCrash } from './util/recoverFromCrash.js'
 
 const { knex } = getKnex()
 // logQueryTime(knex);
@@ -30,8 +30,8 @@ export const endImport = () => {
   return true
 }
 ;(async () => {
-  console.log('Initializing DB...')
-  await knex.migrate.latest()
+  // console.log('Initializing DB...')
+  // await knex.migrate.latest()
 
   server(() => isImporting)
   await reportInfo('Server started.')

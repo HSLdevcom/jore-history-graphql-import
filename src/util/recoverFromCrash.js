@@ -1,6 +1,6 @@
-import { getLatestImportedFile, importCompleted } from '../importStatus'
-import { runFtpImport } from '../importRunners'
-import { DEBUG } from '../constants'
+import { getLatestImportedFile, importCompleted } from '../importStatus.js'
+import { runFtpImport } from '../importRunners.js'
+import { DEBUG } from '../constants.js'
 
 /**
  * If the process crashes, we need to mark the import that was in progress

@@ -1,6 +1,6 @@
 import through from 'through2'
 import throughConcurrent from 'through2-concurrent'
-import { GEOMETRY_TABLE_NAME } from './constants'
+import { GEOMETRY_TABLE_NAME } from './constants.js'
 
 const isWhitespaceOnly = /^\s*$/
 

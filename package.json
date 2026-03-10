@@ -3,8 +3,8 @@
   "version": "0.0.1",
   "description": "Data importer for jore-history-graphql",
   "scripts": {
-    "start": "node --max-old-space-size=32768 --unhandled-rejections=strict --inspect -r esm -r dotenv/config src/index.js",
-    "start:production": "node --max-old-space-size=32768 --unhandled-rejections=strict -r esm -r dotenv/config src/index.js",
+    "start": "node --max-old-space-size=32768 --unhandled-rejections=strict --inspect -r dotenv/config src/index.js",
+    "start:production": "node --max-old-space-size=32768 --unhandled-rejections=strict -r dotenv/config src/index.js",
     "lint": "eslint src --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
@@ -25,20 +25,18 @@
   "homepage": "https://github.com/HSLdevcom/jore-history-graphql-import",
   "dependencies": {
     "@azure/abort-controller": "^1.0.1",
-    "@azure/storage-blob": "12.0.0-preview.2",
+    "@azure/storage-blob": "12.31.0",
     "basic-ftp": "^3.5.0",
     "chardet": "^0.7.0",
     "cron": "^1.7.1",
     "date-fns": "^1.30.1",
     "dotenv": "^8.0.0",
     "env-cmd": "^9.0.3",
-    "esm": "^3.2.25",
     "etl": "^0.6.2",
     "express": "^4.17.1",
     "express-basic-auth": "^1.2.0",
     "express-fileupload": "^1.1.9",
     "express-react-views": "^0.11.0",
-    "forever": "^2.0.0",
     "fs-extra": "^7.0.0",
     "ftp-srv": "^4.3.4",
     "got": "^10.0.4",
@@ -47,6 +45,7 @@
     "knex": "^2.5.1",
     "knex-postgis": "^0.14.3",
     "lodash": "^4.17.12",
+    "lodash-es": "^4.17.23",
     "lru-cache": "^5.1.1",
     "p-map": "^2.1.0",
     "p-queue": "^3.0.0",
@@ -64,23 +63,13 @@
   },
   "devDependencies": {
     "babel-eslint": "^10.0.1",
-    "eslint": "^5.4.0",
+    "eslint": "^10.0.2",
     "eslint-config-airbnb-base": "^13.1.0",
     "eslint-config-prettier": "^3.0.1",
     "eslint-plugin-import": "^2.14.0",
     "eslint-plugin-prettier": "^2.6.2",
     "lint-staged": "^16.2.3",
     "prettier": "^2.0.5"
-  },
-  "resolutions": {
-    "minimist": "^1.2.6",
-    "@babel/traverse": "^7.23.2",
-    "eslint-utils": "^1.4.1",
-    "underscore": "^1.12.1",
-    "lodash": "^4.17.12",
-    "set-value": "^2.0.1",
-    "mixin-deep": "^1.3.2",
-    "form-data": "2.5.4"
   },
   "lint-staged": {
     "*.{ts,js}": [
@@ -92,5 +81,6 @@
     "hooks": {
       "pre-commit": "lint-staged"
     }
-  }
+  },
+  "type": "module"
 }
