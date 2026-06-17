@@ -215,6 +215,16 @@ export default {
         type: 'date',
         notNullable: true,
       },
+      {
+        length: 6,
+        name: 'line_id_parsed',
+        type: 'string',
+      },
+      {
+        length: 1,
+        name: 'trunk_route',
+        type: 'string',
+      },
     ],
     primary: ['line_id', 'date_begin', 'date_end'],
   },
