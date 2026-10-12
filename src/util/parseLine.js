@@ -12,9 +12,14 @@ export function parseLine(line, fields) {
   const values = {}
   let index = 1
 
-  fields.forEach(({ length, name, type, defaultTo }) => {
+  const expectedLength = fields.reduce((length, field) => length + field.length, 0)
+  const hasOptionalFields = line.length >= expectedLength
+
+  fields.forEach(({ length, name, type, defaultTo, optional }) => {
+    const fieldIsPresent = !optional || hasOptionalFields
+
     if (name) {
-      let value = line.substring(index, index + length).trim()
+      let value = fieldIsPresent ? line.substring(index, index + length).trim() : ''
 
       if (!value && defaultTo) {
         value = defaultTo
@@ -41,7 +46,9 @@ export function parseLine(line, fields) {
         values[name] = value
       }
     }
-    index += length
+    if (fieldIsPresent) {
+      index += length
+    }
   })
 
   if (typeof values.lat !== 'undefined' && typeof values.lon !== 'undefined') {

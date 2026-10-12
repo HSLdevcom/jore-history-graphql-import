@@ -469,6 +469,14 @@ export default {
         notNullable: true,
       },
       {
+        length: 2,
+        name: 'seconds',
+        type: 'integer',
+        notNullable: true,
+        defaultTo: '0',
+        optional: true,
+      },
+      {
         length: 1,
         name: 'is_accessible',
         type: 'boolean',
@@ -512,6 +520,14 @@ export default {
         name: 'arrival_minutes',
         type: 'integer',
         notNullable: true,
+      },
+      {
+        length: 2,
+        name: 'arrival_seconds',
+        type: 'integer',
+        notNullable: true,
+        defaultTo: '0',
+        optional: true,
       },
       {
         length: 2,

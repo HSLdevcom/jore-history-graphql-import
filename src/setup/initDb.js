@@ -12,6 +12,18 @@ async function initDb(knex) {
 
     const createdTables = await createTables('jore', tables, knex)
 
+    const optionalDepartureFields = tables.departure.fields.filter(({ optional }) => optional)
+
+    for (const { name, defaultTo } of optionalDepartureFields) {
+      const hasColumn = await knex.schema.withSchema('jore').hasColumn('departure', name)
+
+      if (!hasColumn) {
+        await knex.schema.withSchema('jore').alterTable('departure', (table) => {
+          table.integer(name).notNullable().defaultTo(defaultTo)
+        })
+      }
+    }
+
     if (createdTables.length !== 0) {
       await createForeignKeys('jore', pick(tables, createdTables), knex)
     }
