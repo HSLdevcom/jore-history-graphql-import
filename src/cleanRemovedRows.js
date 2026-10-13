@@ -83,10 +83,10 @@ export async function cleanupOldRows() {
     const tableId = `jore.${tableName}`
 
     const result = await knex.transaction((trx) =>
-      trx.raw(
-        `DELETE FROM ?? WHERE ?? < NOW() - INTERVAL '2 years';`,
-        [tableId, 'date_updated']
-      )
+      trx.raw(`DELETE FROM ?? WHERE ?? < NOW() - INTERVAL '2 years';`, [
+        tableId,
+        'date_updated',
+      ])
     )
 
     console.log(`Removed ${result.rowCount} stale rows from ${tableName}.`)
