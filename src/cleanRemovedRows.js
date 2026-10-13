@@ -84,8 +84,8 @@ export async function cleanupOldRows() {
 
     const result = await knex.transaction((trx) =>
       trx.raw(
-        `DELETE FROM ?? WHERE COALESCE(??, ??) < NOW() - INTERVAL '2 years';`,
-        [tableId, 'date_updated', 'date_imported']
+        `DELETE FROM ?? WHERE ?? < NOW() - INTERVAL '2 years';`,
+        [tableId, 'date_updated']
       )
     )
 
