@@ -64,6 +64,7 @@ async function createTables(schema, config, knex) {
       }
 
       table.timestamp('date_imported').defaultTo(knex.fn.now())
+      table.timestamp('date_updated').defaultTo(knex.fn.now())
     })
 
     return tableName
