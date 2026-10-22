@@ -19,7 +19,11 @@ import { createDbDump } from './util/createDbDump.js'
 import { uploadDbDump } from './util/uploadDbDump.js'
 import { ENVIRONMENT, QUEUE_SIZE } from './constants.js'
 import { createQueue } from './util/createQueue.js'
-import { cleanupRowsFromFile, removeAllDataFromTable } from './cleanRemovedRows.js'
+import {
+  cleanupOldRows,
+  cleanupRowsFromFile,
+  removeAllDataFromTable,
+} from './cleanRemovedRows.js'
 
 const getTableNameFromFileName = (filename) =>
   Object.entries(schema).find(
@@ -126,6 +130,8 @@ export async function importFile(filePath) {
         await doFileImport(file)
       }
     }
+
+    //await cleanupOldRows()
 
     console.log('Finishing up...')
   } catch (err) {

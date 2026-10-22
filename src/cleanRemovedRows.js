@@ -78,6 +78,21 @@ export async function removeAllDataFromTable(tableName) {
   }
 }
 
+export async function cleanupOldRows() {
+  for (const tableName of Object.keys(schema)) {
+    const tableId = `jore.${tableName}`
+
+    const result = await knex.transaction((trx) =>
+      trx.raw(`DELETE FROM ?? WHERE ?? < NOW() - INTERVAL '2 years';`, [
+        tableId,
+        'date_updated',
+      ])
+    )
+
+    console.log(`Removed ${result.rowCount} stale rows from ${tableName}.`)
+  }
+}
+
 function createRemoveStreamForTable(tableName, queueAdd, countRemoved) {
   const primaryKeys = getIndexForTable(tableName)
 
