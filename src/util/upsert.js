@@ -34,7 +34,12 @@ export async function upsert({ trx, tableName, data, primaryKeys = [], constrain
 
   // Just insert if we don't have any constraints
   if (!constraint && primaryKeys.length === 0) {
-    return batchInsert(items)
+    return batchInsert(
+      items.map((item) => ({
+        ...item,
+        date_updated: knex.fn.now(),
+      }))
+    )
   }
 
   const itemCount = items.length
@@ -51,7 +56,8 @@ export async function upsert({ trx, tableName, data, primaryKeys = [], constrain
   }
 
   // eslint-disable-next-line prefer-template
-  placeholderRow = '(' + placeholderRow.join(',') + ')'
+  placeholderRow = '(' + placeholderRow.join(',') + ', NOW())'
+  const insertKeys = [...itemKeys, 'date_updated']
 
   // Create a string of placeholder values (?,?,?) for each item we want to insert
   const valuesPlaceholders = []
@@ -84,6 +90,7 @@ export async function upsert({ trx, tableName, data, primaryKeys = [], constrain
   const updateValues = itemKeys
     .filter((key) => !primaryKeys.includes(key)) // Don't update primary indices
     .map((key) => knex.raw('?? = EXCLUDED.??', [key, key]).toString())
+    .concat('date_updated = NOW()')
     .join(',\n')
 
   // Get the keys that the ON CONFLICT should check for
@@ -93,14 +100,14 @@ export async function upsert({ trx, tableName, data, primaryKeys = [], constrain
     : 'ON CONSTRAINT ??'
 
   const upsertQuery = `
-INSERT INTO ?? (${itemKeys.map(() => '??').join(',')})
+INSERT INTO ?? (${insertKeys.map(() => '??').join(',')})
 VALUES ${valuesPlaceholders.join(',')}
 ON CONFLICT ${onConflictKeys} DO UPDATE SET
 ${updateValues};
 `
   const upsertBindings = [
     tableId,
-    ...itemKeys,
+    ...insertKeys,
     ...insertValues,
     ...(!constraint ? primaryKeys : [constraint]),
   ]

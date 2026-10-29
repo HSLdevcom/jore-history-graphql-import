@@ -106,6 +106,8 @@ The export archive contains a number of `.dat` files, each corresponding to a ta
 
 Each .dat file in the archive contains rows which are to be inserted in the database. The fields are not separated, but the schema contains the length of each field so that they can be read into database columns.
 
+Rows in the JORE tables are removed after they have not been updated for two years. `date_updated` is set when a row is first inserted and refreshed whenever an import updates that row. `date_imported` remains the original insert time. Rows with a null `date_updated` are retained because their last-update time is unknown.
+
 > Note that you need quite a lot of memory on your machine to run the importer as it handles a lot of data. The import may crash when running locally. It is a good idea to exclude the `departures` table from any test imports that you do to both lower the memory requirements of the import and make it complete faster.
 
 ### Schema
@@ -165,6 +167,8 @@ aaaabb
   b: 'bb'
 }
 ```
+
+The `aikat.dat` departure format may include 2-character seconds fields after the departure and arrival minutes. The importer detects rows with those fields and stores them as `seconds` and `arrival_seconds`. Older rows without seconds are still supported and are imported with both values set to `0`.
 
 ### Primary key
 
