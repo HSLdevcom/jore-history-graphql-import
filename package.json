@@ -8,6 +8,8 @@
     "lint": "eslint src --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
+    "test": "node --test",
+    "check-and-build": "npm run format:check && npm test",
     "ftpsource": "ftp-srv ftp://127.0.0.1:2121 --root ./source",
     "knex": "knex",
     "knex:local": "env-cmd knex"
@@ -23,6 +25,9 @@
     "url": "https://github.com/HSLdevcom/jore-history-graphql-import/issues"
   },
   "homepage": "https://github.com/HSLdevcom/jore-history-graphql-import",
+  "engines": {
+    "node": ">=22"
+  },
   "dependencies": {
     "@azure/abort-controller": "^1.0.1",
     "@azure/storage-blob": "12.31.0",
@@ -63,8 +68,8 @@
   },
   "devDependencies": {
     "babel-eslint": "^10.0.1",
-    "eslint": "^10.0.2",
-    "eslint-config-airbnb-base": "^13.1.0",
+    "eslint": "^8.57.1",
+    "eslint-config-airbnb-base": "^15.0.0",
     "eslint-config-prettier": "^3.0.1",
     "eslint-plugin-import": "^2.14.0",
     "eslint-plugin-prettier": "^2.6.2",
@@ -82,5 +87,14 @@
       "pre-commit": "lint-staged"
     }
   },
-  "type": "module"
+  "type": "module",
+  "prettier": {
+    "semi": false,
+    "singleQuote": true,
+    "printWidth": 95,
+    "arrowParens": "always",
+    "bracketSpacing": true,
+    "trailingComma": "es5",
+    "tabWidth": 2
+  }
 }

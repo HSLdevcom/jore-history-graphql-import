@@ -51,10 +51,10 @@ docker run -p 8000:8000 --name jore-history-graphql-import hsldevcom/jore-histor
 Alternatively, when developing, start the importer directly with Node on your computer:
 
 ```shell script
-yarn run start
+npm start
 ```
 
-Upon starting, the app will check that the DB is migrated fully and run any schema changes if needed. You can also run the migrations with `yarn run knex migrate:latest`. Check Knex docs for more information about migrations.
+Upon starting, the app will check that the DB is migrated fully and run any schema changes if needed. You can also run the migrations with `npm run knex -- migrate:latest`. Check Knex docs for more information about migrations.
 
 The import runs on a timer and will activate each night at around 3:00 am. Access the admin interface to trigger the import immediately.
 
@@ -234,5 +234,5 @@ Once connected to an instance, check logs:
 
 ```
 $ docker exec -it 42f257a81b9c sh
-$ yarn run forever logs 0 -f
+$ forever logs 0 -f
 ```
