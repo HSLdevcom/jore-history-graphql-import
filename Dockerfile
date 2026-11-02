@@ -2,11 +2,11 @@ FROM hsldevcom/infodevops-docker-base-images:22-node-edge AS build
 
 WORKDIR /opt/jore
 
-COPY package.json package-lock.json ./
+COPY .npmrc package.json package-lock.json ./
 RUN npm ci
 
 COPY src ./src
-RUN npm run check-and-build && npm prune --omit=dev
+RUN npm prune --omit=dev
 
 FROM hsldevcom/infodevops-docker-base-images:22-node-edge AS production
 
