@@ -4,7 +4,7 @@ Data importer for [jore-history-graphql](https://github.com/HSLdevcom/jore-histo
 
 ### Prerequisites
 
-You need a Postgres database to run the import against. The app will apply the DB schema when starting.
+Use Node.js 22 or later and install dependencies with `npm install`. You also need a Postgres database to run the import against. The app will apply the DB schema when starting.
 
 > Ensure you are using the dev database (`transitlog-dev-cluster-c.postgres.database.azure.com`) or a local database when running locally.
 
@@ -42,19 +42,19 @@ Check the .env files for an idea of which env variables you need to run the app.
 
 Make sure to add the appropriate credentials for the FTP server (USERNAME, PASSWORD). Ask the project team members for these.
 
-Start the importer with Docker:
+Set the required environment variables when starting the container; environment files are not included in the image. For local Docker runs, you can pass the ignored `.env` file:
 
 ```shell script
-docker run -p 8000:8000 --name jore-history-graphql-import hsldevcom/jore-history-graphql-import:production
+docker run --env-file .env -p 8000:8000 --name jore-history-graphql-import hsldevcom/jore-history-graphql-import:production
 ```
 
 Alternatively, when developing, start the importer directly with Node on your computer:
 
 ```shell script
-yarn run start
+npm start
 ```
 
-Upon starting, the app will check that the DB is migrated fully and run any schema changes if needed. You can also run the migrations with `yarn run knex migrate:latest`. Check Knex docs for more information about migrations.
+Upon starting, the app will check that the DB is migrated fully and run any schema changes if needed. You can also run the migrations with `npm run knex -- migrate:latest`. Check Knex docs for more information about migrations.
 
 The import runs on a timer and will activate each night at around 3:00 am. Access the admin interface to trigger the import immediately.
 
@@ -234,5 +234,5 @@ Once connected to an instance, check logs:
 
 ```
 $ docker exec -it 42f257a81b9c sh
-$ yarn run forever logs 0 -f
+$ forever logs 0 -f
 ```

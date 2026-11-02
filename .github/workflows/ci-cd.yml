@@ -1,25 +1,20 @@
----
-name: "CI/CD: Continuous integration and continuous deployment"
-on: [pull_request]
-permissions:
-  contents: read
+name: CI/CD
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
 
 jobs:
-  build-check:
-    name: 'Build & check format'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: "npm"
-
-      - name: Install NPM dependencies
-        run: yarn install --frozen-lockfile
-
-      - name: Check code formatting
-        run: yarn run format:check
+  ci-cd:
+    uses: HSLdevcom/transitdata-shared-workflows/.github/workflows/ci-cd-typescript.yml@latest
+    with:
+      checkAndTestOutsideDocker: true
+      checkAndTestInsideDocker: false
+    secrets: inherit
